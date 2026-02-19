@@ -1,0 +1,25 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+import '../../../core/http/app_http_client.dart';
+import '../dto/bible_api_com_dto.dart';
+
+class BibleApiComProvider {
+  final AppHttpClient httpClient;
+  BibleApiComProvider(this.httpClient);
+
+  Future<BibleApiComResponseDto> fetch(
+      String passage, {
+        required String translationId,
+      }) async {
+    final url = 'https://bible-api.com/$passage?translation=$translationId';
+    final http.Response res = await httpClient.get(url);
+
+    if (res.statusCode != 200) {
+      throw Exception('Bible API error: ${res.statusCode}');
+    }
+
+    final jsonMap = json.decode(res.body) as Map<String, dynamic>;
+    return BibleApiComResponseDto.fromJson(jsonMap);
+  }
+}

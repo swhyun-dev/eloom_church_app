@@ -1,0 +1,250 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'prayer_models.dart';
+
+class PrayerWritePage extends StatefulWidget {
+  final MyPrayerItem? initial;
+  const PrayerWritePage({super.key, this.initial});
+
+  @override
+  State<PrayerWritePage> createState() => _PrayerWritePageState();
+}
+
+class _PrayerWritePageState extends State<PrayerWritePage> {
+  final _titleCtrl = TextEditingController();
+  final _contentCtrl = TextEditingController();
+
+  bool isPublic = true;
+
+  @override
+  void initState() {
+    super.initState();
+    final x = widget.initial;
+    if (x != null) {
+      _titleCtrl.text = x.title;
+      _contentCtrl.text = x.content;
+      isPublic = x.isPublic;
+    }
+  }
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _contentCtrl.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final title = _titleCtrl.text.trim();
+    final content = _contentCtrl.text.trim();
+
+    if (title.isEmpty || content.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('필수 항목을 입력해주세요.')),
+      );
+      return;
+    }
+
+    final initial = widget.initial;
+
+    if (initial != null) {
+      // ✅ 수정 모드: 결과 반환
+      final edited = initial.copyWith(
+        title: title,
+        content: content,
+        isPublic: isPublic,
+      );
+      Navigator.of(context).pop<MyPrayerItem>(edited);
+      return;
+    }
+
+    // ✅ 작성 모드(더미): 그냥 닫기
+    context.pop();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('작성 완료(더미)')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.initial == null ? '기도제목' : '기도제목 수정'),
+        centerTitle: true,
+      ),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 22),
+        children: [
+          Text(
+            '작성 유의 사항',
+            style: TextStyle(
+              fontSize: 14.5,
+              fontWeight: FontWeight.w900,
+              color: cs.onSurface.withOpacity(0.85),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.black.withOpacity(0.08)),
+            ),
+            child: Text(
+              '※ 개인 기도 리스트를 작성하시면 소속된 구역기본방 내의 기도 리스트가 자동 공유됩니다.\n\n'
+                  '※ 구역원에게 공개를 원하지 않으시면 반드시 비공개에 체크하시기 바랍니다.\n\n'
+                  '※ 공개된 기도 리스트는 구역과 본인 이외에는 절대 열람이 불가능하오니 참고하시기 바랍니다.',
+              style: TextStyle(
+                fontSize: 12.5,
+                height: 1.35,
+                color: Colors.black.withOpacity(0.75),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          _FieldLabel('기도제목*'),
+          const SizedBox(height: 6),
+          TextField(
+            controller: _titleCtrl,
+            decoration: const InputDecoration(
+              hintText: '',
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          _FieldLabel('기도내용*'),
+          const SizedBox(height: 6),
+          TextField(
+            controller: _contentCtrl,
+            minLines: 5,
+            maxLines: 8,
+            decoration: const InputDecoration(
+              hintText: '',
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          _FieldLabel('공개여부*'),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _ChoiceButton(
+                  label: '공개',
+                  active: isPublic,
+                  onTap: () => setState(() => isPublic = true),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _ChoiceButton(
+                  label: '비공개',
+                  active: !isPublic,
+                  onTap: () => setState(() => isPublic = false),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 14),
+          SizedBox(
+            height: 46,
+            child: FilledButton(
+              onPressed: _submit,
+              child: const Text('작성완료'),
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 46,
+            child: OutlinedButton(
+              onPressed: () => context.pop(),
+              child: const Text('취소'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FieldLabel extends StatelessWidget {
+  final String text; // 예: "기도제목*"
+  const _FieldLabel(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    final hasStar = text.contains('*');
+    final base = text.replaceAll('*', '');
+
+    return RichText(
+      text: TextSpan(
+        style: const TextStyle(
+          fontSize: 13.5,
+          fontWeight: FontWeight.w900,
+          color: Colors.black,
+        ),
+        children: [
+          TextSpan(text: base),
+          if (hasStar)
+            TextSpan(
+              text: '*',
+              style: TextStyle(
+                color: Colors.red.shade700, // ✅ 빨간색
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ChoiceButton extends StatelessWidget {
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  const _ChoiceButton({
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        height: 40,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: active ? cs.primary : Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: active ? cs.primary : Colors.black.withOpacity(0.12),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontWeight: FontWeight.w900,
+            color: active ? cs.onPrimary : Colors.black.withOpacity(0.75),
+          ),
+        ),
+      ),
+    );
+  }
+}
