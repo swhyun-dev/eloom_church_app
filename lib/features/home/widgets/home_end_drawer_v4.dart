@@ -83,7 +83,7 @@ class _HomeEndDrawerV4State extends ConsumerState<HomeEndDrawerV4> {
                     child: ListView.separated(
                       padding: EdgeInsets.zero,
                       itemCount: leftMenus.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      separatorBuilder: (_, _) => const SizedBox(height: 10),
                       itemBuilder: (context, i) {
                         final isSelected = selected == i;
                         final title = leftMenus[i];

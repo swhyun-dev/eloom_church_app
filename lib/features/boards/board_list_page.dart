@@ -1,37 +1,64 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../dummy/dummy_data.dart';
-import '../../models/board_post.dart';
+import '../../services/board_service.dart';
 
-class BoardListPage extends StatelessWidget {
+class BoardListPage extends StatefulWidget {
   final String type; // news | notice
   const BoardListPage({super.key, required this.type});
 
-  String get title => type == 'news' ? '교회소식' : '모임공지';
+  @override
+  State<BoardListPage> createState() => _BoardListPageState();
+}
+
+class _BoardListPageState extends State<BoardListPage> {
+  late final Future<List<BoardPostData>> _future;
+
+  String get title => widget.type == 'news' ? '교회소식' : '모임공지';
+
+  String get _category =>
+      widget.type == 'news' ? 'CHURCH_NEWS' : 'MEETING_NOTICE';
+
+  @override
+  void initState() {
+    super.initState();
+    _future = BoardService().fetchByCategory(_category);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final posts = DummyData.boardPosts
-        .where((p) => p.type == type)
-        .toList()
-      ..sort((a, b) {
-        // pinned desc -> createdAt desc
-        if (a.pinned != b.pinned) return a.pinned ? -1 : 1;
-        return b.createdAt.compareTo(a.createdAt);
-      });
-
     return Scaffold(
       appBar: AppBar(title: Text(title)),
-      body: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-        itemCount: posts.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 10),
-        itemBuilder: (context, i) {
-          final p = posts[i];
-          return _PostCard(
-            post: p,
-            showNoticeMeta: type == 'notice',
-            onTap: () => context.push('/boards/$type/${p.id}'),
+      body: FutureBuilder<List<BoardPostData>>(
+        future: _future,
+        builder: (context, snap) {
+          if (snap.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snap.hasError) {
+            return Center(child: Text('오류: ${snap.error}'));
+          }
+          final posts = (snap.data ?? [])
+            ..sort((a, b) {
+              if (a.isPinned != b.isPinned) return a.isPinned ? -1 : 1;
+              return b.createdAt.compareTo(a.createdAt);
+            });
+
+          if (posts.isEmpty) {
+            return const Center(child: Text('게시글이 없습니다.'));
+          }
+
+          return ListView.separated(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            itemCount: posts.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 10),
+            itemBuilder: (context, i) {
+              final p = posts[i];
+              return _PostCard(
+                post: p,
+                showNoticeMeta: widget.type == 'notice',
+                onTap: () => context.push('/boards/${widget.type}/${p.id}'),
+              );
+            },
           );
         },
       ),
@@ -40,7 +67,7 @@ class BoardListPage extends StatelessWidget {
 }
 
 class _PostCard extends StatelessWidget {
-  final BoardPost post;
+  final BoardPostData post;
   final bool showNoticeMeta;
   final VoidCallback onTap;
 
@@ -64,12 +91,8 @@ class _PostCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(children: [
-                if (post.pinned)
-                  _Badge(text: '고정', bg: Colors.black.withOpacity(0.06), fg: Colors.black87),
-                if (post.important) ...[
-                  const SizedBox(width: 6),
-                  const _Badge(text: '중요', bg: Color(0xFFFFE8E8), fg: Color(0xFFB00020)),
-                ],
+                if (post.isPinned)
+                  _Badge(text: '고정', bg: Colors.black.withValues(alpha: 0.06), fg: Colors.black87),
                 const Spacer(),
                 Text(date, style: const TextStyle(fontSize: 12, color: Colors.black45)),
               ]),
@@ -85,20 +108,17 @@ class _PostCard extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontSize: 13, color: Colors.black54),
               ),
-              if (showNoticeMeta) ...[
+              if (showNoticeMeta && post.endAt != null) ...[
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    _Mini(text: '대상: ${post.target}'),
+                    _Mini(text: '마감: ${post.endAt!.month}/${post.endAt!.day}'),
                     const SizedBox(width: 8),
-                    if (post.endAt != null) ...[
-                      _Mini(text: '마감: ${post.endAt!.month}/${post.endAt!.day}'),
-                      const SizedBox(width: 8),
-                      if (_ddayLabel(post.endAt!) != null) _Mini(text: _ddayLabel(post.endAt!)!),
-                    ],
+                    if (_ddayLabel(post.endAt!) != null)
+                      _Mini(text: _ddayLabel(post.endAt!)!),
                   ],
                 ),
-              ]
+              ],
             ],
           ),
         ),
@@ -134,7 +154,7 @@ class _Mini extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.04),
+        color: Colors.black.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(text, style: const TextStyle(fontSize: 12, color: Colors.black54)),

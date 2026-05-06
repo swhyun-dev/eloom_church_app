@@ -203,7 +203,7 @@ class _DonationReceiptPageState extends State<DonationReceiptPage> {
 
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('신청이 접수되었습니다.')));
     // Navigator.pop(context); // 필요하면 완료 후 뒤로
-    // debugPrint(payload.toString());
+    debugPrint(payload.toString());
   }
 }
 

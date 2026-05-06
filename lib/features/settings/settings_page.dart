@@ -148,7 +148,7 @@ class _PresetChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: active ? Colors.blue.withOpacity(0.12) : Colors.black.withOpacity(0.04),
+          color: active ? Colors.blue.withValues(alpha: 0.12) : Colors.black.withValues(alpha: 0.04),
           borderRadius: BorderRadius.circular(999),
         ),
         child: Text(

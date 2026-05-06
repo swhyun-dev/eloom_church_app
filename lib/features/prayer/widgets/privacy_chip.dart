@@ -52,7 +52,7 @@ class PrivacyChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: st.bg,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: st.fg.withOpacity(0.25)),
+        border: Border.all(color: st.fg.withValues(alpha: 0.25)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

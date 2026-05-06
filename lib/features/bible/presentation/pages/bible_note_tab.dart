@@ -53,7 +53,7 @@ class _BibleNoteTabState extends State<BibleNoteTab> {
           child: ListView.separated(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
             itemCount: memos.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
+            separatorBuilder: (_, _) => const Divider(height: 1),
             itemBuilder: (context, i) {
               final m = memos[i];
               final range = (m.endVerse == null) ? '${m.chapter}:${m.startVerse}' : '${m.chapter}:${m.startVerse}-${m.endVerse}';

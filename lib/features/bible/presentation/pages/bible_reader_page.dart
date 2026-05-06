@@ -211,7 +211,7 @@ class _BibleReaderPageState extends State<BibleReaderPage>
                             width: 44,
                             height: 5,
                             decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.15),
+                              color: Colors.black.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(999),
                             ),
                           ),
@@ -331,7 +331,7 @@ class _BibleReaderPageState extends State<BibleReaderPage>
   Widget _buildControlsV2() {
     final cs = Theme.of(context).colorScheme;
 
-    final title = '${_book.koName} ${_chapter}장';
+    final title = '${_book.koName} $_chapter장';
 
     final canPrev = !_loading && _chapter > 1;
     final canNext = !_loading && _chapter < _book.chapters;
@@ -359,7 +359,7 @@ class _BibleReaderPageState extends State<BibleReaderPage>
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
-                      color: cs.onSurface.withOpacity(0.9),
+                      color: cs.onSurface.withValues(alpha: 0.9),
                     ),
                   ),
                 ),
@@ -384,7 +384,7 @@ class _BibleReaderPageState extends State<BibleReaderPage>
                   onTap: () => _openPicker(initialTabIndex: 0),
                 ),
                 _ChipButton(
-                  label: '${_chapter}장',
+                  label: '$_chapter장',
                   onTap: () => _openPicker(initialTabIndex: 1),
                 ),
                 _ChipButton(
@@ -440,7 +440,7 @@ class _BibleReaderPageState extends State<BibleReaderPage>
       itemPositionsListener: _itemPositionsListener,
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 24),
       itemCount: aVerses.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
       itemBuilder: (_, i) {
         final v = aVerses[i];
         final bText = bMap[v.verse];
@@ -459,7 +459,7 @@ class _BibleReaderPageState extends State<BibleReaderPage>
                   padding: const EdgeInsets.only(left: 32),
                   child: Container(
                     decoration: BoxDecoration(
-                      color: highlight.withOpacity(0.35),
+                      color: highlight.withValues(alpha: 0.35),
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
@@ -509,7 +509,7 @@ class _ChipButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: cs.surface,
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: Colors.black.withOpacity(0.12)),
+          border: Border.all(color: Colors.black.withValues(alpha: 0.12)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -517,12 +517,12 @@ class _ChipButton extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                color: cs.onSurface.withOpacity(0.85),
+                color: cs.onSurface.withValues(alpha: 0.85),
                 fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(width: 6),
-            Icon(Icons.expand_more, size: 18, color: cs.onSurface.withOpacity(0.55)),
+            Icon(Icons.expand_more, size: 18, color: cs.onSurface.withValues(alpha: 0.55)),
           ],
         ),
       ),
@@ -593,7 +593,7 @@ class _BookList extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       itemCount: books.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
       itemBuilder: (_, i) {
         final b = books[i];
         final active = b.id == selected.id;
@@ -604,11 +604,11 @@ class _BookList extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
-              color: active ? cs.primary.withOpacity(0.10) : cs.surface,
+              color: active ? cs.primary.withValues(alpha: 0.10) : cs.surface,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color:
-                active ? cs.primary.withOpacity(0.35) : Colors.black.withOpacity(0.10),
+                active ? cs.primary.withValues(alpha: 0.35) : Colors.black.withValues(alpha: 0.10),
               ),
             ),
             child: Row(
@@ -669,13 +669,13 @@ class _ChapterPicker extends StatelessWidget {
               color: active ? cs.primary : cs.surface,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: active ? cs.primary : Colors.black.withOpacity(0.12),
+                color: active ? cs.primary : Colors.black.withValues(alpha: 0.12),
               ),
             ),
             child: Text(
               '$c',
               style: TextStyle(
-                color: active ? cs.onPrimary : cs.onSurface.withOpacity(0.85),
+                color: active ? cs.onPrimary : cs.onSurface.withValues(alpha: 0.85),
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -756,8 +756,8 @@ class _VersionPicker extends StatelessWidget {
                 selectedId: translationA,
                 onPick: onPickA,
                 // 기본 역본: 기존 스타일(Primary 계열)
-                activeFill: cs.primary.withOpacity(0.14),
-                activeBorder: cs.primary.withOpacity(0.55),
+                activeFill: cs.primary.withValues(alpha: 0.14),
+                activeBorder: cs.primary.withValues(alpha: 0.55),
                 activeText: cs.onSurface,
                 badgeColor: cs.primary,
               ),
@@ -771,7 +771,7 @@ class _VersionPicker extends StatelessWidget {
                 onPick: onPickB,
                 // 대조 역본: teal 계열로 완전히 구분
                 activeFill: _contrastSurface(cs),
-                activeBorder: _contrastFill(cs).withOpacity(0.85),
+                activeBorder: _contrastFill(cs).withValues(alpha: 0.85),
                 activeText: cs.onSurface,
                 badgeColor: _contrastFill(cs),
               ),
@@ -784,7 +784,7 @@ class _VersionPicker extends StatelessWidget {
           '두권보기는 기본 역본/대조 역본을 나란히 표시합니다.',
           style: TextStyle(
             fontSize: 12,
-            color: cs.onSurface.withOpacity(0.55),
+            color: cs.onSurface.withValues(alpha: 0.55),
           ),
         ),
       ],
@@ -817,14 +817,14 @@ class _SegmentButton extends StatelessWidget {
           color: active ? cs.primary : cs.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: active ? cs.primary : Colors.black.withOpacity(0.12),
+            color: active ? cs.primary : Colors.black.withValues(alpha: 0.12),
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
             fontWeight: FontWeight.w800,
-            color: active ? cs.onPrimary : cs.onSurface.withOpacity(0.85),
+            color: active ? cs.onPrimary : cs.onSurface.withValues(alpha: 0.85),
           ),
         ),
       ),
@@ -871,7 +871,7 @@ class _VersionColumn extends StatelessWidget {
                   title,
                   style: TextStyle(
                     fontWeight: FontWeight.w900,
-                    color: cs.onSurface.withOpacity(0.85),
+                    color: cs.onSurface.withValues(alpha: 0.85),
                   ),
                 ),
               ),
@@ -879,10 +879,10 @@ class _VersionColumn extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: badgeColor.withOpacity(cs.brightness == Brightness.dark ? 0.18 : 0.12),
+                  color: badgeColor.withValues(alpha: cs.brightness == Brightness.dark ? 0.18 : 0.12),
                   borderRadius: BorderRadius.circular(999),
                   border: Border.all(
-                    color: badgeColor.withOpacity(cs.brightness == Brightness.dark ? 0.55 : 0.45),
+                    color: badgeColor.withValues(alpha: cs.brightness == Brightness.dark ? 0.55 : 0.45),
                   ),
                 ),
                 child: Text(
@@ -890,7 +890,7 @@ class _VersionColumn extends StatelessWidget {
                   style: TextStyle(
                     fontWeight: FontWeight.w900,
                     fontSize: 12,
-                    color: badgeColor.withOpacity(cs.brightness == Brightness.dark ? 0.95 : 0.90),
+                    color: badgeColor.withValues(alpha: cs.brightness == Brightness.dark ? 0.95 : 0.90),
                   ),
                 ),
               ),
@@ -902,7 +902,7 @@ class _VersionColumn extends StatelessWidget {
             final active = t.id == selectedId;
 
             final fill = active ? activeFill : cs.surface;
-            final border = active ? activeBorder : Colors.black.withOpacity(0.12);
+            final border = active ? activeBorder : Colors.black.withValues(alpha: 0.12);
 
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
@@ -921,7 +921,7 @@ class _VersionColumn extends StatelessWidget {
                     t.label,
                     style: TextStyle(
                       fontWeight: active ? FontWeight.w900 : FontWeight.w600,
-                      color: active ? activeText : cs.onSurface.withOpacity(0.85),
+                      color: active ? activeText : cs.onSurface.withValues(alpha: 0.85),
                     ),
                   ),
                 ),
@@ -968,7 +968,7 @@ class _VerseTile extends StatelessWidget {
               '$verse',
               style: TextStyle(
                 fontWeight: FontWeight.w800,
-                color: cs.onSurface.withOpacity(0.85),
+                color: cs.onSurface.withValues(alpha: 0.85),
               ),
             ),
           ),
@@ -982,7 +982,7 @@ class _VerseTile extends StatelessWidget {
                     fontSize: 16,
                     height: 1.5,
                     fontWeight: FontWeight.w400,
-                    color: cs.onSurface.withOpacity(0.88),
+                    color: cs.onSurface.withValues(alpha: 0.88),
                   ),
                 ),
                 if (textB != null) ...[
@@ -1033,9 +1033,9 @@ class _CircleNavButton extends StatelessWidget {
           decoration: BoxDecoration(
             color: cs.surface,
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.black.withOpacity(0.12)),
+            border: Border.all(color: Colors.black.withValues(alpha: 0.12)),
           ),
-          child: Icon(icon, size: 24, color: cs.onSurface.withOpacity(0.75)),
+          child: Icon(icon, size: 24, color: cs.onSurface.withValues(alpha: 0.75)),
         ),
       ),
     );

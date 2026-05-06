@@ -150,13 +150,19 @@ class MyPage extends ConsumerWidget {
 
                 if (ok != true) return;
 
-                // TODO: 서버 API 연동 시 -> ref.read(authProvider.notifier).withdraw();
-                ref.read(authProvider.notifier).logout();
-
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('회원 탈퇴가 처리되었습니다. (더미)')),
-                  );
+                try {
+                  await ref.read(authProvider.notifier).withdraw();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('회원 탈퇴가 완료되었습니다.')),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('탈퇴 처리 중 오류가 발생했습니다: $e')),
+                    );
+                  }
                 }
               },
             ),
@@ -192,7 +198,7 @@ class _ProfileCard extends StatelessWidget {
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.08),
+                color: Colors.blue.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: const Icon(Icons.person_outline, color: Colors.blue),
@@ -417,15 +423,15 @@ class _Chip extends StatelessWidget {
 
     switch (tone) {
       case _Tone.blue:
-        bg = Colors.blue.withOpacity(0.10);
+        bg = Colors.blue.withValues(alpha: 0.10);
         fg = Colors.blue;
         break;
       case _Tone.green:
-        bg = Colors.green.withOpacity(0.12);
+        bg = Colors.green.withValues(alpha: 0.12);
         fg = Colors.green;
         break;
       case _Tone.gray:
-        bg = Colors.black.withOpacity(0.06);
+        bg = Colors.black.withValues(alpha: 0.06);
         fg = Colors.black54;
         break;
     }
@@ -479,107 +485,6 @@ class _SingleLinkSection extends StatelessWidget {
     return Card(
       child: ListTile(
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: onTap,
-      ),
-    );
-  }
-}
-void _showWithdrawDialog(BuildContext context, WidgetRef ref) {
-  showDialog(
-    context: context,
-    builder: (_) => AlertDialog(
-      title: const Text('회원탈퇴'),
-      content: const Text(
-        '정말 회원탈퇴 하시겠습니까?\n\n'
-            '탈퇴 시 계정 정보가 삭제되며 복구가 어렵습니다.',
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('취소'),
-        ),
-        TextButton(
-          onPressed: () {
-            Navigator.pop(context);
-            _showWithdrawFinalConfirm(context, ref);
-          },
-          child: const Text(
-            '계속',
-            style: TextStyle(color: Colors.red),
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-void _showWithdrawFinalConfirm(BuildContext context, WidgetRef ref) {
-  showDialog(
-    context: context,
-    builder: (_) => AlertDialog(
-      title: const Text('마지막 확인'),
-      content: const Text(
-        '정말로 탈퇴를 진행할까요?\n'
-            '이 작업은 되돌릴 수 없습니다.',
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('취소'),
-        ),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.red,
-            foregroundColor: Colors.white,
-          ),
-          onPressed: () async {
-            Navigator.pop(context);
-
-            // TODO: 실제 API 연동 시 여기서 서버 호출
-            // 예) await ref.read(authProvider.notifier).withdraw();
-
-            // ✅ 더미 처리: 안내 + 로그아웃 처리(원치 않으면 로그아웃 제거 가능)
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('회원탈퇴 기능은 준비 중입니다. (서버 연동 예정)')),
-              );
-            }
-
-            // (선택) 일단 로그아웃
-            ref.read(authProvider.notifier).logout();
-          },
-          child: const Text('탈퇴하기'),
-        ),
-      ],
-    ),
-  );
-}
-
-class _DangerSection extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  const _DangerSection({
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        leading: const Icon(Icons.warning_amber_rounded, color: Colors.red),
-        title: Text(
-          title,
-          style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.red),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: const TextStyle(fontSize: 12.5, color: Colors.black54),
-        ),
         trailing: const Icon(Icons.chevron_right),
         onTap: onTap,
       ),

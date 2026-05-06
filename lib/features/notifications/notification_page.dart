@@ -44,8 +44,11 @@ class NotificationPage extends ConsumerWidget {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
           onPressed: () {
-            if (context.canPop()) context.pop();
-            else context.go('/');
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/');
+            }
           },
         ),
         actions: [
@@ -77,7 +80,7 @@ class NotificationPage extends ConsumerWidget {
           : ListView.separated(
         padding: const EdgeInsets.fromLTRB(0, 6, 0, 6),
         itemCount: items.length,
-        separatorBuilder: (_, __) => const Divider(height: 1, color: _line),
+        separatorBuilder: (_, _) => const Divider(height: 1, color: _line),
         itemBuilder: (context, i) {
           final x = items[i];
 

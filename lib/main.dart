@@ -5,6 +5,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'app.dart';
 import 'features/bible/domain/models/bible_memo.dart';
 import 'features/core/di/service_locator.dart';
+import 'state/auth_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,5 +24,9 @@ Future<void> main() async {
   // get_it 등록 (memoBox 주입)
   setupServiceLocator(memoBox: memoBox);
 
-  runApp(const ProviderScope(child: App()));
+  // SharedPreferences에서 로그인 상태 복원
+  final container = ProviderContainer();
+  await container.read(authProvider.notifier).init();
+
+  runApp(UncontrolledProviderScope(container: container, child: const App()));
 }

@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../services/registry_matcher.dart';
 import '../../../state/auth_provider.dart';
-import 'address_search_page.dart';
 
 class SignupPage extends ConsumerStatefulWidget {
   final String verifiedPhone; // 숫자만

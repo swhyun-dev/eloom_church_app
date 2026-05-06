@@ -43,13 +43,11 @@ class _BiblePageState extends State<BiblePage> {
     const darkBg = Color(0xFF0B1220);
     const darkSurface = Color(0xFF0F172A);
 
-    // ✅ M3: 라이트/다크를 명확히 선언 + onSurface/onBackground까지 지정
+    // ✅ M3: 라이트/다크를 명확히 선언 + onSurface까지 지정
     final scheme = base.colorScheme.copyWith(
       brightness: dark ? Brightness.dark : Brightness.light,
       surface: dark ? darkSurface : base.colorScheme.surface,
-      background: dark ? darkBg : base.colorScheme.background,
       onSurface: dark ? Colors.white : Colors.black,
-      onBackground: dark ? Colors.white : Colors.black,
     );
 
     // ✅ 글씨가 안 보이는 문제의 핵심: AppBar/TabBar/본문 기본 색을 확실히 잡는다

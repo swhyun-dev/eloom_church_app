@@ -1,8 +1,12 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
 
-import '../../../services/registry_matcher.dart';
+import '../../../config/api_config.dart';
+import '../../../models/account_role.dart';
+import '../../../models/church_registry_person.dart';
 import '../../../state/auth_provider.dart';
 
 class SignupInfoPage extends ConsumerStatefulWidget {
@@ -26,21 +30,17 @@ class SignupInfoPage extends ConsumerStatefulWidget {
 class _SignupInfoPageState extends ConsumerState<SignupInfoPage> {
   final nameCtrl = TextEditingController();
   final phoneCtrl = TextEditingController();
-
   final idCtrl = TextEditingController();
   final pwCtrl = TextEditingController();
   final pw2Ctrl = TextEditingController();
-  final zipCtrl = TextEditingController();
   final addrCtrl = TextEditingController();
-  final emailIdCtrl = TextEditingController();
 
-  String emailDomain = '선택하기';
   String? error;
+  bool busy = false;
 
   @override
   void initState() {
     super.initState();
-    // ✅ 인증된 휴대폰번호 자동 세팅
     phoneCtrl.text = widget.verifiedPhone;
   }
 
@@ -51,19 +51,13 @@ class _SignupInfoPageState extends ConsumerState<SignupInfoPage> {
     idCtrl.dispose();
     pwCtrl.dispose();
     pw2Ctrl.dispose();
-    zipCtrl.dispose();
     addrCtrl.dispose();
-    emailIdCtrl.dispose();
     super.dispose();
   }
 
   bool _pwMatch() => pwCtrl.text.trim() == pw2Ctrl.text.trim();
 
-  Widget _row({
-    required String label,
-    required Widget field,
-    bool required = false,
-  }) {
+  Widget _row({required String label, required Widget field, bool required = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -96,7 +90,7 @@ class _SignupInfoPageState extends ConsumerState<SignupInfoPage> {
     );
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     final name = nameCtrl.text.trim();
     final userId = idCtrl.text.trim();
     final pw = pwCtrl.text.trim();
@@ -111,32 +105,86 @@ class _SignupInfoPageState extends ConsumerState<SignupInfoPage> {
       return;
     }
 
-    // ✅ 교적 DB 매칭 (이름 + 휴대폰번호)
-    final matched = RegistryMatcher.match(
-      name: name,
-      phone: widget.verifiedPhone,
-    );
+    setState(() {
+      busy = true;
+      error = null;
+    });
 
-    ref.read(authProvider.notifier).applySignupResult(
-      name: matched?.name ?? name,
-      userId: userId,
-      phone: widget.verifiedPhone,
-      address: addrCtrl.text.trim(),
-      agreedPrivacy: widget.agreedPrivacy,
-      matchedRegistry: matched,
-    );
+    try {
+      final res = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/auth/sms/register'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'verifiedPhone': widget.verifiedPhone,
+          'name': name,
+          'userId': userId,
+          'password': pw,
+          if (addrCtrl.text.trim().isNotEmpty) 'address': addrCtrl.text.trim(),
+        }),
+      );
 
-    ref.read(authProvider.notifier).login(
-      name: matched?.name ?? name,
-      userId: userId,
-      phone: widget.verifiedPhone,
-    );
+      final decoded = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('가입 완료! 자동 로그인 되었습니다.')),
-    );
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        setState(() {
+          busy = false;
+          error = (decoded['message'] as String?) ?? '가입에 실패했습니다.';
+        });
+        return;
+      }
 
-    context.go('/');
+      final token = decoded['token'] as String?;
+      final user = decoded['user'] as Map<String, dynamic>?;
+
+      final apiRole = user?['role'] as String? ?? 'PENDING';
+      final roleMap = {
+        'ADMIN': AccountRole.admin,
+        'SUPER_ADMIN': AccountRole.admin,
+        'MINISTER': AccountRole.staff,
+        'MEMBER': AccountRole.member,
+        'PENDING': AccountRole.pending,
+      };
+      final role = roleMap[apiRole] ?? AccountRole.pending;
+
+      ChurchRegistryPerson? registry;
+      if (user?['zone'] != null && user?['parish'] != null) {
+        registry = ChurchRegistryPerson(
+          name: user!['name'] as String? ?? name,
+          phone: widget.verifiedPhone,
+          position: user['position'] as String? ?? '',
+          parish: user['parish'] as String,
+          district: user['zone'] as String,
+          isDistrictLeader: user['isDistrictLeader'] as bool? ?? false,
+        );
+      }
+
+      ref.read(authProvider.notifier).applySignupResult(
+        name: user?['name'] as String? ?? name,
+        userId: userId,
+        phone: widget.verifiedPhone,
+        address: addrCtrl.text.trim(),
+        agreedPrivacy: widget.agreedPrivacy,
+        matchedRegistry: registry,
+        token: token,
+        isAdmin: role == AccountRole.admin,
+        isStaff: role == AccountRole.staff,
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(registry != null ? '가입 완료! 교적 매칭 성공 🎉' : '가입 완료! 자동 로그인 되었습니다.'),
+        ),
+      );
+
+      context.go('/');
+    } catch (e) {
+      setState(() {
+        busy = false;
+        error = '가입 중 오류가 발생했습니다. ($e)';
+      });
+    }
   }
 
   @override
@@ -161,7 +209,6 @@ class _SignupInfoPageState extends ConsumerState<SignupInfoPage> {
           ),
           const SizedBox(height: 12),
 
-          // ✅ 교적 매칭 안내 박스
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
@@ -186,17 +233,15 @@ class _SignupInfoPageState extends ConsumerState<SignupInfoPage> {
             ),
           ),
 
-          // ✅ 이름 (교적 매칭 핵심)
           _row(
             label: '이름',
             required: true,
             field: TextField(
               controller: nameCtrl,
+              enabled: !busy,
               decoration: _boxHint('교적에 등록된 이름을 입력해주세요'),
             ),
           ),
-
-          // ✅ 휴대폰번호 (인증 완료 / 수정 불가)
           _row(
             label: '휴대폰번호',
             required: true,
@@ -206,12 +251,12 @@ class _SignupInfoPageState extends ConsumerState<SignupInfoPage> {
               decoration: _boxHint('', disabled: true),
             ),
           ),
-
           _row(
             label: '아이디',
             required: true,
             field: TextField(
               controller: idCtrl,
+              enabled: !busy,
               decoration: _boxHint('6자리 이상 영문, 숫자'),
             ),
           ),
@@ -221,6 +266,7 @@ class _SignupInfoPageState extends ConsumerState<SignupInfoPage> {
             field: TextField(
               controller: pwCtrl,
               obscureText: true,
+              enabled: !busy,
               decoration: _boxHint('비밀번호를 입력해주세요'),
             ),
           ),
@@ -230,6 +276,7 @@ class _SignupInfoPageState extends ConsumerState<SignupInfoPage> {
             field: TextField(
               controller: pw2Ctrl,
               obscureText: true,
+              enabled: !busy,
               decoration: _boxHint('비밀번호를 한번 더 입력해주세요'),
               onChanged: (_) {
                 if (error == '비밀번호가 일치하지 않습니다.') setState(() => error = null);
@@ -248,8 +295,14 @@ class _SignupInfoPageState extends ConsumerState<SignupInfoPage> {
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              onPressed: _submit,
-              child: const Text('회원가입완료', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+              onPressed: busy ? null : _submit,
+              child: busy
+                  ? const SizedBox(
+                      height: 22,
+                      width: 22,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                    )
+                  : const Text('회원가입완료', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
             ),
           ),
 

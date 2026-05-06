@@ -241,9 +241,9 @@ class _MinistryPageState extends ConsumerState<MinistryPage>
       context: pageCtx,
       barrierDismissible: true,
       barrierLabel: 'ministry_complete',
-      barrierColor: Colors.black.withOpacity(0.45),
+      barrierColor: Colors.black.withValues(alpha: 0.45),
       transitionDuration: const Duration(milliseconds: 180),
-      pageBuilder: (ctx, _, __) {
+      pageBuilder: (ctx, _, _) {
         return Material(
           color: Colors.white,
           child: SafeArea(
@@ -369,7 +369,7 @@ class _MinistryPageState extends ConsumerState<MinistryPage>
           ),
         );
       },
-      transitionBuilder: (context, anim, __, child) {
+      transitionBuilder: (context, anim, _, child) {
         final curved = CurvedAnimation(parent: anim, curve: Curves.easeOut);
         return FadeTransition(opacity: curved, child: child);
       },
@@ -405,7 +405,6 @@ class _InfoBullet extends StatelessWidget {
 
 class _ApplyTab extends StatelessWidget {
   static const Color _primary = Color(0xFF0B4FA8);
-  static const Color _line = Color(0xFFE5E7EB);
 
   final Map<MinistryDept, List<String>> roles;
   final MinistryDept? selectedDept;
@@ -551,7 +550,7 @@ class _HistoryTab extends ConsumerWidget {
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
       itemCount: items.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
       itemBuilder: (_, i) {
         final x = items[i];
         final date =

@@ -1,20 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'prayer_models.dart';
+import '../../services/prayer_service.dart';
+import '../../state/auth_provider.dart';
 
-class PrayerWritePage extends StatefulWidget {
+class PrayerWritePage extends ConsumerStatefulWidget {
   final MyPrayerItem? initial;
   const PrayerWritePage({super.key, this.initial});
 
   @override
-  State<PrayerWritePage> createState() => _PrayerWritePageState();
+  ConsumerState<PrayerWritePage> createState() => _PrayerWritePageState();
 }
 
-class _PrayerWritePageState extends State<PrayerWritePage> {
+class _PrayerWritePageState extends ConsumerState<PrayerWritePage> {
   final _titleCtrl = TextEditingController();
   final _contentCtrl = TextEditingController();
 
   bool isPublic = true;
+  bool _busy = false;
 
   @override
   void initState() {
@@ -34,7 +38,7 @@ class _PrayerWritePageState extends State<PrayerWritePage> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     final title = _titleCtrl.text.trim();
     final content = _contentCtrl.text.trim();
 
@@ -45,24 +49,34 @@ class _PrayerWritePageState extends State<PrayerWritePage> {
       return;
     }
 
-    final initial = widget.initial;
-
-    if (initial != null) {
-      // ✅ 수정 모드: 결과 반환
-      final edited = initial.copyWith(
-        title: title,
-        content: content,
-        isPublic: isPublic,
+    // Edit mode (no PUT endpoint yet)
+    if (widget.initial != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('수정 기능은 준비 중입니다.')),
       );
-      Navigator.of(context).pop<MyPrayerItem>(edited);
       return;
     }
 
-    // ✅ 작성 모드(더미): 그냥 닫기
-    context.pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('작성 완료(더미)')),
-    );
+    setState(() => _busy = true);
+    try {
+      final token = ref.read(authProvider).token;
+      await PrayerService(token: token).create(
+        content: content,
+        title: title,
+        isPublic: isPublic,
+      );
+      if (!mounted) return;
+      context.pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('기도제목이 등록되었습니다.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('오류: $e')),
+      );
+    }
   }
 
   @override
@@ -82,7 +96,7 @@ class _PrayerWritePageState extends State<PrayerWritePage> {
             style: TextStyle(
               fontSize: 14.5,
               fontWeight: FontWeight.w900,
-              color: cs.onSurface.withOpacity(0.85),
+              color: cs.onSurface.withValues(alpha: 0.85),
             ),
           ),
           const SizedBox(height: 8),
@@ -91,7 +105,7 @@ class _PrayerWritePageState extends State<PrayerWritePage> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.black.withOpacity(0.08)),
+              border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
             ),
             child: Text(
               '※ 개인 기도 리스트를 작성하시면 소속된 구역기본방 내의 기도 리스트가 자동 공유됩니다.\n\n'
@@ -100,7 +114,7 @@ class _PrayerWritePageState extends State<PrayerWritePage> {
               style: TextStyle(
                 fontSize: 12.5,
                 height: 1.35,
-                color: Colors.black.withOpacity(0.75),
+                color: Colors.black.withValues(alpha: 0.75),
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -111,6 +125,7 @@ class _PrayerWritePageState extends State<PrayerWritePage> {
           const SizedBox(height: 6),
           TextField(
             controller: _titleCtrl,
+            enabled: !_busy,
             decoration: const InputDecoration(
               hintText: '',
               border: OutlineInputBorder(),
@@ -123,6 +138,7 @@ class _PrayerWritePageState extends State<PrayerWritePage> {
           const SizedBox(height: 6),
           TextField(
             controller: _contentCtrl,
+            enabled: !_busy,
             minLines: 5,
             maxLines: 8,
             decoration: const InputDecoration(
@@ -141,6 +157,7 @@ class _PrayerWritePageState extends State<PrayerWritePage> {
                 child: _ChoiceButton(
                   label: '공개',
                   active: isPublic,
+                  enabled: !_busy,
                   onTap: () => setState(() => isPublic = true),
                 ),
               ),
@@ -149,6 +166,7 @@ class _PrayerWritePageState extends State<PrayerWritePage> {
                 child: _ChoiceButton(
                   label: '비공개',
                   active: !isPublic,
+                  enabled: !_busy,
                   onTap: () => setState(() => isPublic = false),
                 ),
               ),
@@ -159,15 +177,21 @@ class _PrayerWritePageState extends State<PrayerWritePage> {
           SizedBox(
             height: 46,
             child: FilledButton(
-              onPressed: _submit,
-              child: const Text('작성완료'),
+              onPressed: _busy ? null : _submit,
+              child: _busy
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                    )
+                  : const Text('작성완료'),
             ),
           ),
           const SizedBox(height: 10),
           SizedBox(
             height: 46,
             child: OutlinedButton(
-              onPressed: () => context.pop(),
+              onPressed: _busy ? null : () => context.pop(),
               child: const Text('취소'),
             ),
           ),
@@ -178,7 +202,7 @@ class _PrayerWritePageState extends State<PrayerWritePage> {
 }
 
 class _FieldLabel extends StatelessWidget {
-  final String text; // 예: "기도제목*"
+  final String text;
   const _FieldLabel(this.text);
 
   @override
@@ -199,7 +223,7 @@ class _FieldLabel extends StatelessWidget {
             TextSpan(
               text: '*',
               style: TextStyle(
-                color: Colors.red.shade700, // ✅ 빨간색
+                color: Colors.red.shade700,
                 fontWeight: FontWeight.w900,
               ),
             ),
@@ -212,12 +236,14 @@ class _FieldLabel extends StatelessWidget {
 class _ChoiceButton extends StatelessWidget {
   final String label;
   final bool active;
+  final bool enabled;
   final VoidCallback onTap;
 
   const _ChoiceButton({
     required this.label,
     required this.active,
     required this.onTap,
+    this.enabled = true,
   });
 
   @override
@@ -225,7 +251,7 @@ class _ChoiceButton extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
 
     return InkWell(
-      onTap: onTap,
+      onTap: enabled ? onTap : null,
       borderRadius: BorderRadius.circular(10),
       child: Container(
         height: 40,
@@ -234,14 +260,14 @@ class _ChoiceButton extends StatelessWidget {
           color: active ? cs.primary : Colors.white,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: active ? cs.primary : Colors.black.withOpacity(0.12),
+            color: active ? cs.primary : Colors.black.withValues(alpha: 0.12),
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
             fontWeight: FontWeight.w900,
-            color: active ? cs.onPrimary : Colors.black.withOpacity(0.75),
+            color: active ? cs.onPrimary : Colors.black.withValues(alpha: 0.75),
           ),
         ),
       ),

@@ -26,7 +26,7 @@ Future<void> showMemoBottomSheet(
     builder: (ctx) {
       return AnimatedBuilder(
         animation: readerController,
-        builder: (_, __) {
+        builder: (_, _) {
           final sel = readerController.getSelectionWithColorRange();
           if (sel == null) {
             return Padding(
@@ -78,7 +78,7 @@ Future<void> showMemoBottomSheet(
                       width: 18,
                       height: 18,
                       decoration: BoxDecoration(
-                        color: color.withOpacity(0.85),
+                        color: color.withValues(alpha: 0.85),
                         shape: BoxShape.circle,
                         border: Border.all(color: Colors.black26),
                       ),
@@ -91,8 +91,8 @@ Future<void> showMemoBottomSheet(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(10),
-                    color: color.withOpacity(0.20),
-                    border: Border.all(color: color.withOpacity(0.55)),
+                    color: color.withValues(alpha: 0.20),
+                    border: Border.all(color: color.withValues(alpha: 0.55)),
                   ),
                   child: const Text(
                     '현재 형광펜 색상/범위로 저장됩니다.',

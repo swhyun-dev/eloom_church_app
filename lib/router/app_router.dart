@@ -6,6 +6,7 @@ import '../state/auth_provider.dart';
 
 import '../features/splash/splash_page.dart';
 import '../features/auth/login_page.dart';
+import '../features/auth/login_id_page.dart';
 
 import '../features/home/home_page.dart';
 import '../features/my/my_page.dart';
@@ -35,6 +36,7 @@ import '../features/offering/donation_receipt_page.dart';
 import '../features/boards/fellow_board_page.dart';
 import '../features/boards/fellow_board_detail_page.dart';
 
+import '../features/auth/login_phone_page.dart';
 import '../features/auth/phone_verify_page.dart';
 import '../features/auth/signup_page.dart';
 import '../features/auth/address_search_page.dart';
@@ -45,10 +47,8 @@ import '../features/prayer/prayer_detail_page.dart';
 import '../features/prayer/prayer_write_page.dart';
 import '../features/prayer/prayer_models.dart';
 import '../features/prayer/my_prayer_detail_page.dart';
-import '../features/cell/cell_page.dart';
 // ✅ 새 회원가입 플로우
 import '../features/auth/signup/signup_terms_page.dart';
-import '../features/auth/signup/signup_phone_verify_page.dart';
 import '../features/auth/signup/signup_info_page.dart';
 import '../features/auth/signup/signup_sms_verify_page.dart';
 
@@ -114,6 +114,24 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           final from = state.uri.queryParameters['from'];
           final decoded = from != null ? Uri.decodeComponent(from) : null;
           return LoginPage(from: decoded);
+        },
+      ),
+
+      GoRoute(
+        path: '/login/id',
+        builder: (context, state) {
+          final from = state.uri.queryParameters['from'];
+          final decoded = from != null ? Uri.decodeComponent(from) : null;
+          return LoginIdPage(from: decoded);
+        },
+      ),
+
+      GoRoute(
+        path: '/login/phone',
+        builder: (context, state) {
+          final from = state.uri.queryParameters['from'];
+          final decoded = from != null ? Uri.decodeComponent(from) : null;
+          return LoginPhonePage(from: decoded);
         },
       ),
 
@@ -250,11 +268,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             path: '/prayer',
             builder: (context, state) {
               final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
-              final auth = ref.read(authProvider); // goRouterProvider 안이므로 가능
-              return PrayerPage(
-                initialTab: tab,
-                isLoggedIn: auth.isLoggedIn,
-              );
+              return PrayerPage(initialTab: tab);
             },
           ),
           GoRoute(
@@ -347,7 +361,7 @@ class _GoRouterRefresh extends ChangeNotifier {
   _GoRouterRefresh(this.ref) {
     _sub = ref.listen<AuthState>(
       authProvider,
-          (_, __) => notifyListeners(),
+          (_, _) => notifyListeners(),
     );
   }
 

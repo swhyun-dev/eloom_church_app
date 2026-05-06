@@ -27,7 +27,7 @@ Future<Color?> showHighlightColorPicker(BuildContext context, {required Color in
               spacing: 12,
               runSpacing: 12,
               children: colors.map((c) {
-                final isSel = c.value == selected.value;
+                final isSel = c.toARGB32() == selected.toARGB32();
                 return InkWell(
                   borderRadius: BorderRadius.circular(999),
                   onTap: () {

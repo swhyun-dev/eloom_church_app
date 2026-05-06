@@ -19,6 +19,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
 import '../../config/api_config.dart';
+import '../../services/cafe_service.dart';
+import '../../state/auth_provider.dart';
 
 /// =======================
 /// Utils
@@ -31,11 +33,11 @@ String fmtWon(int v) {
 
 String? _onlyText(CafeTempPolicy policy) {
   switch (policy) {
-    case CafeTempPolicy.HOT_ONLY:
+    case CafeTempPolicy.hotOnly:
       return 'HOT Only';
-    case CafeTempPolicy.ICED_ONLY:
+    case CafeTempPolicy.icedOnly:
       return 'ICED Only';
-    case CafeTempPolicy.BOTH:
+    case CafeTempPolicy.both:
       return null;
   }
 }
@@ -63,7 +65,7 @@ Map<String, dynamic> safeDecodeOptions(String? s) {
   if (s == null || s.trim().isEmpty) return {};
   try {
     final j = jsonDecode(s);
-    if (j is Map) return Map<String, dynamic>.from(j as Map);
+    if (j is Map) return Map<String, dynamic>.from(j);
     return {};
   } catch (_) {
     return {};
@@ -82,22 +84,22 @@ const Color kIcedBadge = Color(0xFF2563EB); // blue
 /// =======================
 /// Server aligned Models
 /// =======================
-enum CafeTempPolicy { BOTH, HOT_ONLY, ICED_ONLY }
+enum CafeTempPolicy { both, hotOnly, icedOnly }
 
 CafeTempPolicy cafeTempPolicyFrom(String? v) {
   switch ((v ?? '').toUpperCase()) {
     case 'HOT_ONLY':
-      return CafeTempPolicy.HOT_ONLY;
+      return CafeTempPolicy.hotOnly;
     case 'ICED_ONLY':
-      return CafeTempPolicy.ICED_ONLY;
+      return CafeTempPolicy.icedOnly;
     default:
-      return CafeTempPolicy.BOTH;
+      return CafeTempPolicy.both;
   }
 }
 
 extension CafeTempPolicyX on CafeTempPolicy {
-  bool get allowHot => this == CafeTempPolicy.BOTH || this == CafeTempPolicy.HOT_ONLY;
-  bool get allowIced => this == CafeTempPolicy.BOTH || this == CafeTempPolicy.ICED_ONLY;
+  bool get allowHot => this == CafeTempPolicy.both || this == CafeTempPolicy.hotOnly;
+  bool get allowIced => this == CafeTempPolicy.both || this == CafeTempPolicy.icedOnly;
 }
 
 class CafeMenuPayload {
@@ -618,9 +620,9 @@ class _MenuRowCard extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: Colors.red.withOpacity(0.12),
+                              color: Colors.red.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(999),
-                              border: Border.all(color: Colors.red.withOpacity(0.25)),
+                              border: Border.all(color: Colors.red.withValues(alpha: 0.25)),
                             ),
                             child: const Text('품절',
                                 style: TextStyle(color: Colors.red, fontWeight: FontWeight.w900, fontSize: 11)),
@@ -658,10 +660,10 @@ class _MenuRowCard extends StatelessWidget {
   }
 
   List<Widget> _tempBadges(CafeTempPolicy policy) {
-    if (policy == CafeTempPolicy.HOT_ONLY) {
+    if (policy == CafeTempPolicy.hotOnly) {
       return const [_TempBadge(text: 'HOT', bg: kHotBadge)];
     }
-    if (policy == CafeTempPolicy.ICED_ONLY) {
+    if (policy == CafeTempPolicy.icedOnly) {
       return const [_TempBadge(text: 'ICED', bg: kIcedBadge)];
     }
     // BOTH => 두개 따로
@@ -683,9 +685,9 @@ class _TempBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
-        color: bg.withOpacity(0.12),
+        color: bg.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: bg.withOpacity(0.35)),
+        border: Border.all(color: bg.withValues(alpha: 0.35)),
       ),
       child: Text(
         text,
@@ -740,8 +742,8 @@ class _CafeOptionPageState extends ConsumerState<CafeOptionPage> {
 
   String? _normalizeTemp(CafeTempPolicy policy, String? cur) {
     if (_isBakery) return null; // ✅ 베이커리는 온도 제거
-    if (policy == CafeTempPolicy.HOT_ONLY) return 'HOT';
-    if (policy == CafeTempPolicy.ICED_ONLY) return 'ICED';
+    if (policy == CafeTempPolicy.hotOnly) return 'HOT';
+    if (policy == CafeTempPolicy.icedOnly) return 'ICED';
     // BOTH
     if (cur == 'HOT' || cur == 'ICED') return cur;
     return 'HOT'; // 기본 HOT
@@ -800,7 +802,7 @@ class _CafeOptionPageState extends ConsumerState<CafeOptionPage> {
                   width: 54,
                   height: 54,
                   decoration: BoxDecoration(
-                    color: kCafePrimary.withOpacity(0.10),
+                    color: kCafePrimary.withValues(alpha: 0.10),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.shopping_bag_outlined, color: kCafePrimary, size: 28),
@@ -864,7 +866,6 @@ class _CafeOptionPageState extends ConsumerState<CafeOptionPage> {
     }
   }
 
-  /// ✅ 바로주문(현재 더미)
   Future<void> _directOrder() async {
     final item = widget.menuItem;
     if (item.isSoldOut) {
@@ -872,8 +873,15 @@ class _CafeOptionPageState extends ConsumerState<CafeOptionPage> {
       return;
     }
 
+    final token = ref.read(authProvider).token;
+    if (token == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('로그인 후 주문할 수 있습니다.')));
+      return;
+    }
+
     final options = _buildOptions();
     final total = item.price * _qty;
+    final optionsJson = options.isEmpty ? null : encodeOptionsSorted(options);
 
     final ok = await showDialog<bool>(
       context: context,
@@ -904,29 +912,36 @@ class _CafeOptionPageState extends ConsumerState<CafeOptionPage> {
     if (ok != true) return;
     if (!mounted) return;
 
-    final orderLine = CafeCartLine(
-      lineId: '${item.id}_${DateTime.now().millisecondsSinceEpoch}',
-      item: item,
-      qty: _qty,
-      optionsJson: options.isEmpty ? null : encodeOptionsSorted(options),
-    );
+    try {
+      final res = await CafeService().createOrder(
+        accessToken: token,
+        items: [{'menuId': item.id, 'qty': _qty, if (optionsJson != null) 'options': optionsJson}],
+      );
 
-    final waiting = 1 + Random().nextInt(12);
-    final order = CafeOrder(
-      orderId: 'OD-${DateTime.now().millisecondsSinceEpoch}',
-      createdAt: DateTime.now(),
-      lines: [orderLine],
-      total: total,
-      waitingCount: waiting,
-    );
+      final apiOrder = res['order'] as Map<String, dynamic>?;
+      final orderLine = CafeCartLine(
+        lineId: '${item.id}_${DateTime.now().millisecondsSinceEpoch}',
+        item: item,
+        qty: _qty,
+        optionsJson: optionsJson,
+      );
+      final order = CafeOrder(
+        orderId: 'OD-${apiOrder?['id'] ?? DateTime.now().millisecondsSinceEpoch}',
+        createdAt: DateTime.now(),
+        lines: [orderLine],
+        total: total,
+        waitingCount: 1 + Random().nextInt(12),
+      );
 
-    ref.read(cafeOrdersProvider.notifier).addOrder(order);
+      ref.read(cafeOrdersProvider.notifier).addOrder(order);
 
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('주문이 완료되었습니다. 주문내역에서 확인하세요.')));
-
-    if (!mounted) return;
-    Navigator.of(context).pop();
-    widget.onGoOrders();
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      widget.onGoOrders();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('주문 실패: $e')));
+    }
   }
 
   String _optionSummary(Map<String, dynamic> o) {
@@ -1023,7 +1038,7 @@ class _CafeOptionPageState extends ConsumerState<CafeOptionPage> {
               const SizedBox(height: 14),
 
               // ✅ 온도 선택(BOTH만) - 세그먼트 버튼
-              if (!_isBakery && item.tempPolicy == CafeTempPolicy.BOTH) ...[
+              if (!_isBakery && item.tempPolicy == CafeTempPolicy.both) ...[
                 _SectionCard(
                   title: '온도 선택',
                   child: _SegmentToggle(
@@ -1130,7 +1145,7 @@ class _CafeOptionPageState extends ConsumerState<CafeOptionPage> {
                 padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  border: Border(top: BorderSide(color: Colors.black.withOpacity(0.08))),
+                  border: Border(top: BorderSide(color: Colors.black.withValues(alpha: 0.08))),
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -1208,10 +1223,10 @@ class _TempPolicyRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (policy == CafeTempPolicy.HOT_ONLY) {
+    if (policy == CafeTempPolicy.hotOnly) {
       return const Center(child: _TempBadge(text: 'HOT', bg: kHotBadge));
     }
-    if (policy == CafeTempPolicy.ICED_ONLY) {
+    if (policy == CafeTempPolicy.icedOnly) {
       return const Center(child: _TempBadge(text: 'ICED', bg: kIcedBadge));
     }
     return const Center(
@@ -1305,7 +1320,7 @@ class _OptRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final border = checked ? kCafePrimary : Colors.black26;
-    final bg = checked ? kCafePrimary.withOpacity(0.10) : Colors.white;
+    final bg = checked ? kCafePrimary.withValues(alpha: 0.10) : Colors.white;
 
     return InkWell(
       borderRadius: BorderRadius.circular(12),
@@ -1440,7 +1455,7 @@ class _CafeCartTab extends ConsumerWidget {
           child: ListView.separated(
             padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
             itemCount: lines.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            separatorBuilder: (_, _) => const SizedBox(height: 10),
             itemBuilder: (context, i) {
               final l = lines[i];
               return Container(
@@ -1528,29 +1543,57 @@ class _CafeCartTab extends ConsumerWidget {
                   );
                   if (ok != true) return;
 
-                  // ✅ 현재는 더미 주문 (추후 /api/cafe/orders 연동 시 optionsJson 그대로 전송하면 됨)
-                  final waiting = 1 + Random().nextInt(12);
-                  final order = CafeOrder(
-                    orderId: 'OD-${DateTime.now().millisecondsSinceEpoch}',
-                    createdAt: DateTime.now(),
-                    lines: lines,
-                    total: total,
-                    waitingCount: waiting,
-                  );
-
-                  ref.read(cafeOrdersProvider.notifier).addOrder(order);
-                  ref.read(cafeCartProvider.notifier).clear();
-
-                  if (context.mounted) {
-                    await Navigator.of(context).push(
-                      MaterialPageRoute(
-                        fullscreenDialog: true,
-                        builder: (_) => CafeOrderCompletePage(order: order),
-                      ),
-                    );
+                  final token = ref.read(authProvider).token;
+                  if (token == null) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('로그인 후 주문할 수 있습니다.')),
+                      );
+                    }
+                    return;
                   }
 
-                  onGoOrders();
+                  try {
+                    final items = lines.map((l) => <String, dynamic>{
+                      'menuId': l.item.id,
+                      'qty': l.qty,
+                      if (l.optionsJson != null) 'options': l.optionsJson,
+                    }).toList();
+
+                    final res = await CafeService().createOrder(
+                      accessToken: token,
+                      items: items,
+                    );
+
+                    final apiOrder = res['order'] as Map<String, dynamic>?;
+                    final order = CafeOrder(
+                      orderId: 'OD-${apiOrder?['id'] ?? DateTime.now().millisecondsSinceEpoch}',
+                      createdAt: DateTime.now(),
+                      lines: lines,
+                      total: total,
+                      waitingCount: 1 + Random().nextInt(12),
+                    );
+
+                    ref.read(cafeOrdersProvider.notifier).addOrder(order);
+                    ref.read(cafeCartProvider.notifier).clear();
+
+                    if (context.mounted) {
+                      await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          fullscreenDialog: true,
+                          builder: (_) => CafeOrderCompletePage(order: order),
+                        ),
+                      );
+                    }
+
+                    onGoOrders();
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('주문 실패: $e')),
+                      );
+                    }
+                  }
                 },
                 child: Text('${fmtWon(total)} 주문하기  총 $count개', style: const TextStyle(fontWeight: FontWeight.w900)),
               ),
@@ -1775,7 +1818,7 @@ class _CafeOrdersTab extends ConsumerWidget {
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       itemCount: orders.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, i) {
         final o = orders[i];
         final first = o.lines.first;
@@ -1833,7 +1876,7 @@ class _CafeOrdersTab extends ConsumerWidget {
                 height: 40,
                 child: FilledButton(
                   style: FilledButton.styleFrom(
-                    backgroundColor: kCafePrimary.withOpacity(0.10),
+                    backgroundColor: kCafePrimary.withValues(alpha: 0.10),
                     foregroundColor: kCafePrimary,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     elevation: 0,
@@ -1981,7 +2024,7 @@ class _CafeOrderDetailPageState extends State<CafeOrderDetailPage> with SingleTi
             height: 44,
             child: FilledButton(
               style: FilledButton.styleFrom(
-                backgroundColor: kCafePrimary.withOpacity(0.10),
+                backgroundColor: kCafePrimary.withValues(alpha: 0.10),
                 foregroundColor: kCafePrimary,
                 elevation: 0,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -2111,11 +2154,11 @@ class _ProcessChipBlink extends StatelessWidget {
 
     return AnimatedBuilder(
       animation: controller,
-      builder: (_, __) {
+      builder: (_, _) {
         final t = controller.value;
         final opacity = active ? (0.80 + 0.20 * t) : 1.0;
         final border = active
-            ? Border.all(color: kCafePrimary.withOpacity(0.35 + 0.35 * t), width: 1)
+            ? Border.all(color: kCafePrimary.withValues(alpha: 0.35 + 0.35 * t), width: 1)
             : Border.all(color: Colors.black12, width: 1);
 
         return Opacity(
@@ -2158,7 +2201,7 @@ class _SteamLine extends StatelessWidget {
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: controller,
-      builder: (_, __) {
+      builder: (_, _) {
         double t = (controller.value + delay) % 1.0;
         final dy = -10.0 * t;
         final op = (1.0 - t).clamp(0.0, 1.0);
@@ -2235,7 +2278,7 @@ class _OrderedBanner extends StatelessWidget {
         children: [
           AnimatedBuilder(
             animation: controller,
-            builder: (_, __) {
+            builder: (_, _) {
               final t = controller.value;
               final scale = 0.95 + (0.05 * t);
               return Transform.scale(
@@ -2273,7 +2316,7 @@ class _MakingBanner extends StatelessWidget {
         children: [
           AnimatedBuilder(
             animation: controller,
-            builder: (_, __) {
+            builder: (_, _) {
               final t = controller.value;
               final dx = (t - 0.5) * 2 * 2.0;
               return Transform.translate(
@@ -2329,7 +2372,7 @@ class _ReadyBanner extends StatelessWidget {
         children: [
           AnimatedBuilder(
             animation: controller,
-            builder: (_, __) {
+            builder: (_, _) {
               final t = controller.value;
               final angle = (t - 0.5) * 2 * 0.12;
               return Transform.rotate(
@@ -2367,7 +2410,7 @@ class _DoneBanner extends StatelessWidget {
         children: [
           AnimatedBuilder(
             animation: controller,
-            builder: (_, __) {
+            builder: (_, _) {
               final t = controller.value;
               final op = 0.7 + 0.3 * t;
               return Opacity(

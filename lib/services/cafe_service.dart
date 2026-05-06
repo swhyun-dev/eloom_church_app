@@ -48,7 +48,7 @@ class CafeService {
         if (list is List) {
           for (final it in list) {
             if (it is Map) {
-              final j = Map<String, dynamic>.from(it as Map);
+              final j = Map<String, dynamic>.from(it);
               // 서버는 category를 넣어주지만, 방어적으로 주입
               j['category'] = catName;
               out.add(CafeMenuItem.fromJson(j));
@@ -103,7 +103,6 @@ class CafeService {
 
     final decoded = jsonDecode(utf8.decode(res.bodyBytes));
     if (decoded is! Map<String, dynamic>) {
-      throw Exception('주문 응답 형식이 올바르지 않습니다.');
       throw Exception('주문 응답 형식이 올바르지 않습니다.');
     }
 

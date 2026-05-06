@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../dummy/dummy_data.dart';
+import '../../services/zone_post_service.dart';
+import '../../services/prayer_service.dart';
+import '../../state/auth_provider.dart';
 
-class CellPage extends StatelessWidget {
-  /// 0 = 나의 구역 정보 / 1 = 구역 게시판
+class CellPage extends ConsumerWidget {
   final int initialTab;
   const CellPage({super.key, this.initialTab = 0});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return DefaultTabController(
       length: 2,
       initialIndex: initialTab.clamp(0, 1),
@@ -38,29 +40,28 @@ class CellPage extends StatelessWidget {
 /// ===============================
 /// 탭1: 나의 구역 정보
 /// ===============================
-class _MyCellInfoTab extends StatelessWidget {
+class _MyCellInfoTab extends ConsumerWidget {
   const _MyCellInfoTab();
 
   @override
-  Widget build(BuildContext context) {
-    if (!DummyData.isAssigned) {
-      return const _UnassignedCenter();
-    }
+  Widget build(BuildContext context, WidgetRef ref) {
+    final auth = ref.watch(authProvider);
+    final registry = auth.registry;
 
-    final me = DummyData.me!;
-    final leader = DummyData.cellLeader;
+    if (registry == null) return const _UnassignedCenter();
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 22),
       children: [
-        // ✅ PrayerPage 톤의 카드
         _InfoCard(
           title: '나의 구역 정보',
           lines: [
-            _InfoLine(label: '이름', value: '${me.name}(${me.position})'),
-            _InfoLine(label: '교구', value: me.parish),
-            _InfoLine(label: '구역', value: me.district),
-            _InfoLine(label: '구역장', value: leader == null ? '-' : '${leader.name}(${leader.position})'),
+            _InfoLine(label: '이름', value: registry.position.isNotEmpty
+                ? '${registry.name}(${registry.position})'
+                : registry.name),
+            _InfoLine(label: '교구', value: registry.parish),
+            _InfoLine(label: '구역', value: registry.district),
+            _InfoLine(label: '역할', value: auth.isDistrictLeader ? '구역장' : '구역원'),
           ],
         ),
       ],
@@ -71,54 +72,80 @@ class _MyCellInfoTab extends StatelessWidget {
 /// ===============================
 /// 탭2: 구역 게시판
 /// ===============================
-class _CellBoardTab extends StatelessWidget {
+class _CellBoardTab extends ConsumerStatefulWidget {
   const _CellBoardTab();
 
   @override
+  ConsumerState<_CellBoardTab> createState() => _CellBoardTabState();
+}
+
+class _CellBoardTabState extends ConsumerState<_CellBoardTab> {
+  late Future<List<ZonePostData>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  void _load() {
+    final token = ref.read(authProvider).token;
+    _future = ZonePostService(token: token).fetchAll();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (!DummyData.isAssigned) return const _UnassignedCenter();
+    final auth = ref.watch(authProvider);
 
-    final key = DummyData.cellKey!;
-    final notices = (DummyData.cellNoticesByCellKey[key] ?? []).toList()
-      ..sort((a, b) => b.date.compareTo(a.date));
+    if (auth.registry == null) return const _UnassignedCenter();
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 22),
-      children: [
-        // ✅ 구역 공지
-        _SectionHeader(
-          title: '구역 공지',
-          trailing: TextButton(
-            onPressed: () => context.push('/cell/notices'),
-            child: const Text('더보기'),
-          ),
-        ),
-        const SizedBox(height: 8),
+    return FutureBuilder<List<ZonePostData>>(
+      future: _future,
+      builder: (context, snap) {
+        if (snap.connectionState != ConnectionState.done) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-        if (notices.isEmpty)
-          _EmptyHint('등록된 공지가 없습니다.')
-        else
-          ...notices.take(3).map((n) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _CardListTile(
-                dateText: _fmtYmd(n.date),
-                title: n.title,
-                onTap: () => context.push('/cell/notices/${n.id}'),
+        final notices = (snap.data ?? [])
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 22),
+          children: [
+            _SectionHeader(
+              title: '구역 공지',
+              trailing: TextButton(
+                onPressed: () => context.push('/cell/notices'),
+                child: const Text('더보기'),
               ),
-            );
-          }),
+            ),
+            const SizedBox(height: 8),
 
-        const SizedBox(height: 12),
+            if (notices.isEmpty)
+              _EmptyHint('등록된 공지가 없습니다.')
+            else
+              ...notices.take(3).map((n) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _CardListTile(
+                    dateText: _fmtYmd(n.createdAt),
+                    title: n.title,
+                    onTap: () => context.push('/cell/notices/${n.id}'),
+                  ),
+                );
+              }),
 
-        // ✅ 구역원 기도 제목 진입
-        _SectionHeader(title: '구역원 기도 제목'),
-        const SizedBox(height: 8),
-        _CardNavTile(
-          title: '구역원 기도 제목 보기',
-          onTap: () => context.push('/cell/prayers'),
-        ),
-      ],
+            const SizedBox(height: 12),
+
+            const _SectionHeader(title: '구역원 기도 제목'),
+            const SizedBox(height: 8),
+            _CardNavTile(
+              title: '구역원 기도 제목 보기',
+              onTap: () => context.push('/cell/prayers'),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -126,60 +153,94 @@ class _CellBoardTab extends StatelessWidget {
 /// ===============================
 /// /cell/notices (공지 리스트)
 /// ===============================
-class CellNoticeListPage extends StatelessWidget {
+class CellNoticeListPage extends ConsumerStatefulWidget {
   const CellNoticeListPage({super.key});
 
   @override
+  ConsumerState<CellNoticeListPage> createState() => _CellNoticeListPageState();
+}
+
+class _CellNoticeListPageState extends ConsumerState<CellNoticeListPage> {
+  late Future<List<ZonePostData>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  void _load() {
+    final token = ref.read(authProvider).token;
+    _future = ZonePostService(token: token).fetchAll();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (!DummyData.isAssigned) {
+    final auth = ref.watch(authProvider);
+
+    if (auth.registry == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('구역공지'), centerTitle: true),
         body: const _UnassignedCenter(),
       );
     }
 
-    final key = DummyData.cellKey!;
-    final isLeader = DummyData.isLeader;
-
-    final notices = (DummyData.cellNoticesByCellKey[key] ?? []).toList()
-      ..sort((a, b) => b.date.compareTo(a.date));
+    final isLeader = auth.isDistrictLeader;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('구역공지'),
-        centerTitle: true,
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 22),
-              itemCount: notices.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (context, i) {
-                final n = notices[i];
-                return _AccordionCard(
-                  dateText: _fmtYmd(n.date),
-                  title: n.title,
-                  content: n.content,
-                  onDetailTap: () => context.push('/cell/notices/${n.id}'),
-                );
-              },
-            ),
-          ),
-          if (isLeader)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: SizedBox(
-                height: 46,
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: () => context.push('/cell/notices/write'),
-                  child: const Text('글쓰기'),
-                ),
+      appBar: AppBar(title: const Text('구역공지'), centerTitle: true),
+      body: FutureBuilder<List<ZonePostData>>(
+        future: _future,
+        builder: (context, snap) {
+          if (snap.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snap.hasError) {
+            return Center(child: Text('오류: ${snap.error}'));
+          }
+
+          final notices = (snap.data ?? [])
+            ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+          return Column(
+            children: [
+              Expanded(
+                child: notices.isEmpty
+                    ? const _EmptyCenter('등록된 공지가 없습니다.')
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 22),
+                        itemCount: notices.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 10),
+                        itemBuilder: (context, i) {
+                          final n = notices[i];
+                          return _AccordionCard(
+                            dateText: _fmtYmd(n.createdAt),
+                            title: n.title,
+                            content: n.content,
+                            onDetailTap: () => context.push('/cell/notices/${n.id}'),
+                          );
+                        },
+                      ),
               ),
-            ),
-        ],
+              if (isLeader)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  child: SizedBox(
+                    height: 46,
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () async {
+                        await context.push('/cell/notices/write');
+                        if (!mounted) return;
+                        setState(_load);
+                      },
+                      child: const Text('글쓰기'),
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -188,50 +249,112 @@ class CellNoticeListPage extends StatelessWidget {
 /// ===============================
 /// /cell/notices/:id (공지 상세)
 /// ===============================
-class CellNoticeDetailPage extends StatelessWidget {
+class CellNoticeDetailPage extends ConsumerStatefulWidget {
   final String noticeId;
   const CellNoticeDetailPage({super.key, required this.noticeId});
 
   @override
+  ConsumerState<CellNoticeDetailPage> createState() => _CellNoticeDetailPageState();
+}
+
+class _CellNoticeDetailPageState extends ConsumerState<CellNoticeDetailPage> {
+  late final Future<ZonePostData?> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    final token = ref.read(authProvider).token;
+    final id = int.tryParse(widget.noticeId) ?? -1;
+    _future = ZonePostService(token: token).fetchById(id);
+  }
+
+  Future<void> _confirmDelete(BuildContext context, int id) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('공지 삭제'),
+        content: const Text('이 공지를 삭제하시겠습니까?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('취소')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('삭제', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    if (!context.mounted) return;
+
+    final router = GoRouter.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+
+    try {
+      final token = ref.read(authProvider).token;
+      await ZonePostService(token: token).delete(id);
+      if (!context.mounted) return;
+      router.pop();
+      messenger.showSnackBar(const SnackBar(content: Text('공지가 삭제되었습니다.')));
+    } catch (e) {
+      if (!context.mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text('삭제 실패: $e')));
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (!DummyData.isAssigned) {
+    final auth = ref.watch(authProvider);
+
+    if (auth.registry == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('구역공지'), centerTitle: true),
         body: const _UnassignedCenter(),
       );
     }
 
-    final key = DummyData.cellKey!;
-    final notices = DummyData.cellNoticesByCellKey[key] ?? [];
-    final n = notices.firstWhere((e) => e.id == noticeId);
-
-    final isLeader = DummyData.isLeader;
+    final isLeader = auth.isDistrictLeader;
 
     return Scaffold(
       appBar: AppBar(title: const Text('구역공지'), centerTitle: true),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 22),
-        children: [
-          _DetailCard(
-            dateText: _fmtYmd(n.date),
-            title: n.title,
-            content: n.content,
-          ),
-          if (isLeader) ...[
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 46,
-              child: OutlinedButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('삭제는 API 연결 후 동작하도록 연결해주세요.')),
-                  );
-                },
-                child: const Text('삭제하기'),
+      body: FutureBuilder<ZonePostData?>(
+        future: _future,
+        builder: (context, snap) {
+          if (snap.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snap.hasError) {
+            return Center(child: Text('오류: ${snap.error}'));
+          }
+          final n = snap.data;
+          if (n == null) {
+            return const Center(child: Text('게시글을 찾을 수 없습니다.'));
+          }
+
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 22),
+            children: [
+              _DetailCard(
+                dateText: _fmtYmd(n.createdAt),
+                title: n.title,
+                content: n.content,
               ),
-            ),
-          ],
-        ],
+              if (isLeader) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 46,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
+                    ),
+                    onPressed: () => _confirmDelete(context, n.id),
+                    child: const Text('삭제하기'),
+                  ),
+                ),
+              ],
+            ],
+          );
+        },
       ),
     );
   }
@@ -240,16 +363,17 @@ class CellNoticeDetailPage extends StatelessWidget {
 /// ===============================
 /// /cell/notices/write (구역장만)
 /// ===============================
-class CellNoticeWritePage extends StatefulWidget {
+class CellNoticeWritePage extends ConsumerStatefulWidget {
   const CellNoticeWritePage({super.key});
 
   @override
-  State<CellNoticeWritePage> createState() => _CellNoticeWritePageState();
+  ConsumerState<CellNoticeWritePage> createState() => _CellNoticeWritePageState();
 }
 
-class _CellNoticeWritePageState extends State<CellNoticeWritePage> {
+class _CellNoticeWritePageState extends ConsumerState<CellNoticeWritePage> {
   final _titleCtrl = TextEditingController();
   final _contentCtrl = TextEditingController();
+  bool _busy = false;
 
   @override
   void dispose() {
@@ -258,52 +382,83 @@ class _CellNoticeWritePageState extends State<CellNoticeWritePage> {
     super.dispose();
   }
 
+  Future<void> _submit() async {
+    final title = _titleCtrl.text.trim();
+    final content = _contentCtrl.text.trim();
+    if (title.isEmpty || content.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('제목과 내용을 입력해주세요.')),
+      );
+      return;
+    }
+
+    setState(() => _busy = true);
+    try {
+      final token = ref.read(authProvider).token;
+      await ZonePostService(token: token).create(title: title, content: content);
+      if (!mounted) return;
+      context.pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('공지가 등록되었습니다.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('오류: $e')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isLeader = DummyData.isLeader;
+    final isLeader = ref.watch(authProvider).isDistrictLeader;
 
     return Scaffold(
       appBar: AppBar(title: const Text('구역공지 작성'), centerTitle: true),
       body: !isLeader
           ? Center(
-        child: Text(
-          '구역장만 작성할 수 있습니다.',
-          style: TextStyle(fontWeight: FontWeight.w800, color: Colors.black.withOpacity(0.6)),
-        ),
-      )
+              child: Text(
+                '구역장만 작성할 수 있습니다.',
+                style: TextStyle(fontWeight: FontWeight.w800, color: Colors.black.withValues(alpha: 0.6)),
+              ),
+            )
           : ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 22),
-        children: [
-          const Text('공지제목*', style: TextStyle(fontWeight: FontWeight.w900)),
-          const SizedBox(height: 8),
-          TextField(controller: _titleCtrl, decoration: _inputDeco()),
-          const SizedBox(height: 16),
-          const Text('공지내용*', style: TextStyle(fontWeight: FontWeight.w900)),
-          const SizedBox(height: 8),
-          TextField(controller: _contentCtrl, maxLines: 7, decoration: _inputDeco()),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 48,
-            child: FilledButton(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('작성완료는 API 연결 후 동작하도록 연결해주세요.')),
-                );
-                context.pop();
-              },
-              child: const Text('작성완료'),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 22),
+              children: [
+                const Text('공지제목*', style: TextStyle(fontWeight: FontWeight.w900)),
+                const SizedBox(height: 8),
+                TextField(controller: _titleCtrl, enabled: !_busy, decoration: _inputDeco()),
+                const SizedBox(height: 16),
+                const Text('공지내용*', style: TextStyle(fontWeight: FontWeight.w900)),
+                const SizedBox(height: 8),
+                TextField(
+                    controller: _contentCtrl,
+                    maxLines: 7,
+                    enabled: !_busy,
+                    decoration: _inputDeco()),
+                const SizedBox(height: 16),
+                SizedBox(
+                  height: 48,
+                  child: FilledButton(
+                    onPressed: _busy ? null : _submit,
+                    child: _busy
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                          )
+                        : const Text('작성완료'),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 48,
+                  child: OutlinedButton(
+                    onPressed: _busy ? null : () => context.pop(),
+                    child: const Text('취소'),
+                  ),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 10),
-          SizedBox(
-            height: 48,
-            child: OutlinedButton(
-              onPressed: () => context.pop(),
-              child: const Text('취소'),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -314,11 +469,11 @@ class _CellNoticeWritePageState extends State<CellNoticeWritePage> {
       fillColor: Colors.white,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.black.withOpacity(0.08)),
+        borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.08)),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.black.withOpacity(0.08)),
+        borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.08)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -330,98 +485,115 @@ class _CellNoticeWritePageState extends State<CellNoticeWritePage> {
 
 /// ===============================
 /// /cell/prayers (구역원 기도 제목)
-/// - 규칙: isPublic && 같은 구역만 (더미는 같은 구역만 들어있음)
 /// ===============================
-class CellPrayerTitlesPage extends StatefulWidget {
+class CellPrayerTitlesPage extends ConsumerStatefulWidget {
   const CellPrayerTitlesPage({super.key});
 
   @override
-  State<CellPrayerTitlesPage> createState() => _CellPrayerTitlesPageState();
+  ConsumerState<CellPrayerTitlesPage> createState() => _CellPrayerTitlesPageState();
 }
 
-class _CellPrayerTitlesPageState extends State<CellPrayerTitlesPage> {
+class _CellPrayerTitlesPageState extends ConsumerState<CellPrayerTitlesPage> {
+  late final Future<List<ZonePrayerData>> _future;
   String? selectedName;
 
   @override
+  void initState() {
+    super.initState();
+    final token = ref.read(authProvider).token;
+    _future = PrayerService(token: token).fetchZone();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (!DummyData.isAssigned) {
+    final auth = ref.watch(authProvider);
+
+    if (auth.registry == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('구역원 기도 제목'), centerTitle: true),
         body: const _UnassignedCenter(),
       );
     }
 
-    final key = DummyData.cellKey!;
-    final all = (DummyData.cellPrayersByCellKey[key] ?? []).toList()
-      ..sort((a, b) => b.date.compareTo(a.date));
-
-    // ✅ 공개만 노출
-    final visible = all.where((p) => p.isPublic).toList();
-
-    final names = <String>{};
-    for (final p in visible) {
-      names.add(p.userName);
-    }
-    final nameList = names.toList();
-
-    if (selectedName == null && nameList.isNotEmpty) {
-      selectedName = nameList.first;
-    }
-
-    final filtered = selectedName == null
-        ? <CellPrayerDummy>[]
-        : visible.where((p) => p.userName == selectedName).toList();
-
     return Scaffold(
       appBar: AppBar(title: const Text('구역원 기도 제목'), centerTitle: true),
-      body: Column(
-        children: [
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 44,
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              scrollDirection: Axis.horizontal,
-              itemCount: nameList.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
-              itemBuilder: (context, i) {
-                final name = nameList[i];
-                final selected = name == selectedName;
-                return _ChoicePill(
-                  text: name,
-                  selected: selected,
-                  onTap: () => setState(() => selectedName = name),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 12),
-          Expanded(
-            child: filtered.isEmpty
-                ? const _EmptyCenter('공개된 기도제목이 없습니다.')
-                : ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 22),
-              itemCount: filtered.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (context, i) {
-                final p = filtered[i];
-                return _AccordionCard(
-                  dateText: _fmtYmd(p.date),
-                  title: p.title,
-                  content: p.content,
-                  onDetailTap: null,
-                );
-              },
-            ),
-          ),
-        ],
+      body: FutureBuilder<List<ZonePrayerData>>(
+        future: _future,
+        builder: (context, snap) {
+          if (snap.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snap.hasError) {
+            return Center(child: Text('오류: ${snap.error}'));
+          }
+
+          final all = (snap.data ?? [])..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+          final names = <String>{};
+          for (final p in all) {
+            if (p.authorName != null) names.add(p.authorName!);
+          }
+          final nameList = names.toList();
+
+          if (selectedName == null && nameList.isNotEmpty) {
+            selectedName = nameList.first;
+          }
+
+          final filtered = selectedName == null
+              ? <ZonePrayerData>[]
+              : all.where((p) => p.authorName == selectedName).toList();
+
+          return Column(
+            children: [
+              const SizedBox(height: 12),
+              if (nameList.isNotEmpty)
+                SizedBox(
+                  height: 44,
+                  child: ListView.separated(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    scrollDirection: Axis.horizontal,
+                    itemCount: nameList.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: 8),
+                    itemBuilder: (context, i) {
+                      final name = nameList[i];
+                      final selected = name == selectedName;
+                      return _ChoicePill(
+                        text: name,
+                        selected: selected,
+                        onTap: () => setState(() => selectedName = name),
+                      );
+                    },
+                  ),
+                ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: filtered.isEmpty
+                    ? const _EmptyCenter('공개된 기도제목이 없습니다.')
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 22),
+                        itemCount: filtered.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 10),
+                        itemBuilder: (context, i) {
+                          final p = filtered[i];
+                          return _AccordionCard(
+                            dateText: _fmtYmd(p.createdAt),
+                            title: p.title,
+                            content: p.content,
+                            onDetailTap: null,
+                          );
+                        },
+                      ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 }
 
 /// ===============================
-/// PrayerPage 톤으로 통일된 위젯들
+/// Shared Widgets
 /// ===============================
 class _CardListTile extends StatelessWidget {
   const _CardListTile({
@@ -444,18 +616,18 @@ class _CardListTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.black.withOpacity(0.08)),
+          border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
           boxShadow: [
             BoxShadow(
               blurRadius: 12,
               offset: const Offset(0, 6),
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
             ),
           ],
         ),
         child: Row(
           children: [
-            Icon(Icons.calendar_today_outlined, size: 16, color: Colors.black.withOpacity(0.45)),
+            Icon(Icons.calendar_today_outlined, size: 16, color: Colors.black.withValues(alpha: 0.45)),
             const SizedBox(width: 8),
             Expanded(
               child: Column(
@@ -466,7 +638,7 @@ class _CardListTile extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: Colors.black.withOpacity(0.55),
+                      color: Colors.black.withValues(alpha: 0.55),
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -479,7 +651,7 @@ class _CardListTile extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(Icons.chevron_right, color: Colors.black.withOpacity(0.35)),
+            Icon(Icons.chevron_right, color: Colors.black.withValues(alpha: 0.35)),
           ],
         ),
       ),
@@ -502,12 +674,12 @@ class _CardNavTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.black.withOpacity(0.08)),
+          border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
           boxShadow: [
             BoxShadow(
               blurRadius: 12,
               offset: const Offset(0, 6),
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
             ),
           ],
         ),
@@ -519,7 +691,7 @@ class _CardNavTile extends StatelessWidget {
                 style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w900),
               ),
             ),
-            Icon(Icons.chevron_right, color: Colors.black.withOpacity(0.35)),
+            Icon(Icons.chevron_right, color: Colors.black.withValues(alpha: 0.35)),
           ],
         ),
       ),
@@ -546,12 +718,12 @@ class _AccordionCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.black.withOpacity(0.08)),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
         boxShadow: [
           BoxShadow(
             blurRadius: 12,
             offset: const Offset(0, 6),
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
           ),
         ],
       ),
@@ -568,7 +740,7 @@ class _AccordionCard extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: Colors.black.withOpacity(0.55),
+                  color: Colors.black.withValues(alpha: 0.55),
                 ),
               ),
               const SizedBox(height: 6),
@@ -578,7 +750,7 @@ class _AccordionCard extends StatelessWidget {
               ),
             ],
           ),
-          trailing: Icon(Icons.keyboard_arrow_down, color: Colors.black.withOpacity(0.35)),
+          trailing: Icon(Icons.keyboard_arrow_down, color: Colors.black.withValues(alpha: 0.35)),
           children: [
             Container(
               width: double.infinity,
@@ -586,14 +758,14 @@ class _AccordionCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: const Color(0xFFF3F4F6),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.black.withOpacity(0.06)),
+                border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
               ),
               child: Text(
                 content,
                 style: TextStyle(
                   fontSize: 13,
                   height: 1.45,
-                  color: Colors.black.withOpacity(0.75),
+                  color: Colors.black.withValues(alpha: 0.75),
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -629,7 +801,7 @@ class _InfoCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.black.withOpacity(0.08)),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -678,7 +850,7 @@ class _InfoRow extends StatelessWidget {
           child: Text(
             value,
             style: TextStyle(
-              color: Colors.black.withOpacity(0.78),
+              color: Colors.black.withValues(alpha: 0.78),
               fontWeight: FontWeight.w800,
               fontSize: 13,
             ),
@@ -726,14 +898,14 @@ class _ChoicePill extends StatelessWidget {
         style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w900,
-          color: selected ? Colors.white : Colors.black.withOpacity(0.75),
+          color: selected ? Colors.white : Colors.black.withValues(alpha: 0.75),
         ),
       ),
       selected: selected,
       onSelected: (_) => onTap(),
       selectedColor: const Color(0xFF0B4AA2),
       backgroundColor: const Color(0xFFF3F4F6),
-      side: BorderSide(color: Colors.black.withOpacity(0.06)),
+      side: BorderSide(color: Colors.black.withValues(alpha: 0.06)),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -767,7 +939,7 @@ class _EmptyCenter extends StatelessWidget {
           textAlign: TextAlign.center,
           style: TextStyle(
             fontWeight: FontWeight.w800,
-            color: Colors.black.withOpacity(0.45),
+            color: Colors.black.withValues(alpha: 0.45),
             height: 1.45,
           ),
         ),
@@ -787,21 +959,14 @@ class _EmptyHint extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.black.withOpacity(0.08)),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
       ),
       child: Text(
         text,
-        style: TextStyle(fontWeight: FontWeight.w800, color: Colors.black.withOpacity(0.6)),
+        style: TextStyle(fontWeight: FontWeight.w800, color: Colors.black.withValues(alpha: 0.6)),
       ),
     );
   }
-}
-
-String _fmtYmd(DateTime d) {
-  final y = d.year.toString().padLeft(4, '0');
-  final m = d.month.toString().padLeft(2, '0');
-  final day = d.day.toString().padLeft(2, '0');
-  return '$y/$m/$day';
 }
 
 class _DetailCard extends StatelessWidget {
@@ -822,12 +987,12 @@ class _DetailCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.black.withOpacity(0.08)),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
         boxShadow: [
           BoxShadow(
             blurRadius: 12,
             offset: const Offset(0, 6),
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
           ),
         ],
       ),
@@ -836,14 +1001,14 @@ class _DetailCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.calendar_today_outlined, size: 14, color: Colors.black.withOpacity(0.45)),
+              Icon(Icons.calendar_today_outlined, size: 14, color: Colors.black.withValues(alpha: 0.45)),
               const SizedBox(width: 6),
               Text(
                 dateText,
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: Colors.black.withOpacity(0.55),
+                  color: Colors.black.withValues(alpha: 0.55),
                 ),
               ),
             ],
@@ -864,14 +1029,14 @@ class _DetailCard extends StatelessWidget {
             decoration: BoxDecoration(
               color: const Color(0xFFF3F4F6),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.black.withOpacity(0.06)),
+              border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
             ),
             child: Text(
               content,
               style: TextStyle(
                 fontSize: 13.5,
                 height: 1.5,
-                color: Colors.black.withOpacity(0.78),
+                color: Colors.black.withValues(alpha: 0.78),
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -880,4 +1045,11 @@ class _DetailCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String _fmtYmd(DateTime d) {
+  final y = d.year.toString().padLeft(4, '0');
+  final m = d.month.toString().padLeft(2, '0');
+  final day = d.day.toString().padLeft(2, '0');
+  return '$y/$m/$day';
 }

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../dummy/dummy_data.dart';
 import '../../../models/edu_event.dart';
+import '../../../services/board_service.dart';
+import '../../../services/edu_event_service.dart';
 
 class HomeNoticeBox extends StatefulWidget {
   const HomeNoticeBox({super.key});
@@ -28,7 +29,6 @@ class _HomeNoticeBoxState extends State<HomeNoticeBox> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 상단: 탭 + 더보기
             Row(
               children: [
                 Expanded(
@@ -64,11 +64,10 @@ class _HomeNoticeBoxState extends State<HomeNoticeBox> {
             ),
             const SizedBox(height: 10),
 
-            // 본문: 탭별 3개 미리보기
-            if (idx == 0) _NewsPreview(),
-            if (idx == 1) _NoticePreview(),
+            if (idx == 0) const _BoardPreview(category: 'CHURCH_NEWS', type: 'news'),
+            if (idx == 1) const _BoardPreview(category: 'MEETING_NOTICE', type: 'notice'),
             if (idx == 2) _EduPreview(),
-            if (idx == 3) _FellowPreview(),
+            if (idx == 3) const _BoardPreview(category: 'MEMBER_NEWS', type: 'fellow'),
           ],
         ),
       ),
@@ -90,7 +89,7 @@ class _Tabs extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: tabs.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (context, i) {
           final active = i == index;
           return InkWell(
@@ -118,77 +117,115 @@ class _Tabs extends StatelessWidget {
   }
 }
 
-class _NewsPreview extends StatelessWidget {
+class _BoardPreview extends StatefulWidget {
+  final String category;
+  final String type; // news | notice | fellow
+
+  const _BoardPreview({required this.category, required this.type});
+
+  @override
+  State<_BoardPreview> createState() => _BoardPreviewState();
+}
+
+class _BoardPreviewState extends State<_BoardPreview> {
+  late final Future<List<BoardPostData>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = BoardService().fetchByCategory(widget.category);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final items = DummyData.boardPosts.where((p) => p.type == 'news').toList()
-      ..sort((a, b) {
-        if (a.pinned != b.pinned) return a.pinned ? -1 : 1;
-        return b.createdAt.compareTo(a.createdAt);
-      });
+    return FutureBuilder<List<BoardPostData>>(
+      future: _future,
+      builder: (context, snap) {
+        if (snap.connectionState != ConnectionState.done) {
+          return const SizedBox(
+            height: 60,
+            child: Center(child: SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))),
+          );
+        }
+        if (snap.hasError) {
+          return _PreviewList(children: const []);
+        }
 
-    final top3 = items.take(3).toList();
+        final items = (snap.data ?? [])
+          ..sort((a, b) {
+            if (a.isPinned != b.isPinned) return a.isPinned ? -1 : 1;
+            return b.createdAt.compareTo(a.createdAt);
+          });
 
-    return _PreviewList(
-      children: top3.map((p) {
-        return _RowItem(
-          title: p.title,
-          date: _fmtDate(p.createdAt),
-          onTap: () => context.push('/boards/news/${p.id}'),
+        final top3 = items.take(3).toList();
+        if (top3.isEmpty) return _PreviewList(children: const []);
+
+        return _PreviewList(
+          children: top3.map((p) {
+            final dday = widget.type == 'notice' ? _ddayText(p.endAt) : null;
+            return _RowItem(
+              title: p.title,
+              date: dday ?? _fmtDate(p.createdAt),
+              isUrgent: dday != null,
+              onTap: () {
+                if (widget.type == 'fellow') {
+                  context.push('/boards/fellow/${p.id}');
+                } else {
+                  context.push('/boards/${widget.type}/${p.id}');
+                }
+              },
+            );
+          }).toList(),
         );
-      }).toList(),
+      },
     );
   }
 }
 
-class _NoticePreview extends StatelessWidget {
+class _EduPreview extends StatefulWidget {
   @override
-  Widget build(BuildContext context) {
-    final items = DummyData.boardPosts.where((p) => p.type == 'notice').toList()
-      ..sort((a, b) {
-        if (a.pinned != b.pinned) return a.pinned ? -1 : 1;
-        if (a.important != b.important) return a.important ? -1 : 1;
-        return b.createdAt.compareTo(a.createdAt);
-      });
-
-    final top3 = items.take(3).toList();
-
-    return _PreviewList(
-      children: top3.map((p) {
-        final prefix = p.important ? '[중요] ' : '';
-        final dday = _ddayText(p.endAt);
-        return _RowItem(
-          title: '$prefix${p.title}',
-          date: dday ?? _fmtDate(p.createdAt),
-          onTap: () => context.push('/boards/notice/${p.id}'),
-          isUrgent: dday != null,
-        );
-      }).toList(),
-    );
-  }
+  State<_EduPreview> createState() => _EduPreviewState();
 }
 
-class _EduPreview extends StatelessWidget {
+class _EduPreviewState extends State<_EduPreview> {
+  late final Future<List<EduEvent>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = EduEventService().fetchAll();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final items = [...DummyData.eduEvents]..sort((a, b) => a.startAt.compareTo(b.startAt));
+    return FutureBuilder<List<EduEvent>>(
+      future: _future,
+      builder: (context, snap) {
+        if (snap.connectionState != ConnectionState.done) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 10),
+            child: Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))),
+          );
+        }
 
-    final upcoming = items.where((e) => !e.endAt.isBefore(now)).take(3).toList();
-    final top3 = upcoming.isNotEmpty ? upcoming : items.take(3).toList();
+        final now = DateTime.now();
+        final items = [...(snap.data ?? <EduEvent>[])]..sort((a, b) => a.startAt.compareTo(b.startAt));
+        final upcoming = items.where((e) => !e.endAt.isBefore(now)).take(3).toList();
+        final top3 = upcoming.isNotEmpty ? upcoming : items.take(3).toList();
 
-    return _PreviewList(
-      children: top3.map((EduEvent e) {
-        final badge = _eduBadge(e.startAt);
-        final dateText = badge != null ? '$badge / ${_fmtDateTime(e.startAt)}' : _fmtDateTime(e.startAt);
-
-        return _RowItem(
-          title: e.title,
-          date: dateText,
-          onTap: () => context.push('/calendar/edu/${e.id}'),
-          isUrgent: badge != null,
+        return _PreviewList(
+          children: top3.map<Widget>((EduEvent e) {
+            final badge = _eduBadge(e.startAt);
+            final dateText = badge != null ? '$badge / ${_fmtDateTime(e.startAt)}' : _fmtDateTime(e.startAt);
+            return _RowItem(
+              title: e.title,
+              date: dateText,
+              onTap: () => context.push('/calendar/edu/${e.id}'),
+              isUrgent: badge != null,
+            );
+          }).toList(),
         );
-      }).toList(),
+      },
     );
   }
 }
@@ -293,69 +330,4 @@ String? _eduBadge(DateTime startAt) {
   if (diff == 0) return '오늘';
   if (diff > 0 && diff <= 6) return '이번주';
   return null;
-}
-
-class _FellowPreview extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final items = <_FellowNewsItem>[
-      _FellowNewsItem(
-        id: 'f1',
-        title: '김OO 성도님 장례 안내',
-        date: DateTime.now().subtract(const Duration(days: 1)),
-        category: '장례',
-      ),
-      _FellowNewsItem(
-        id: 'f2',
-        title: '박OO 성도님 자녀 결혼식 안내',
-        date: DateTime.now().subtract(const Duration(days: 3)),
-        category: '결혼',
-      ),
-      _FellowNewsItem(
-        id: 'f3',
-        title: '이OO 성도님 출산 소식 (축하드립니다)',
-        date: DateTime.now().subtract(const Duration(days: 5)),
-        category: '출산',
-      ),
-      _FellowNewsItem(
-        id: 'f4',
-        title: '정OO 성도님 입원 중입니다. 기도 부탁드립니다.',
-        date: DateTime.now().subtract(const Duration(days: 7)),
-        category: '중보',
-      ),
-      _FellowNewsItem(
-        id: 'f5',
-        title: '새가족 환영: 최OO 성도님(인도: 김OO 집사)',
-        date: DateTime.now().subtract(const Duration(days: 9)),
-        category: '새가족',
-      ),
-    ]..sort((a, b) => b.date.compareTo(a.date));
-
-    final top3 = items.take(3).toList();
-
-    return _PreviewList(
-      children: top3.map((p) {
-        final prefix = '[${p.category}] ';
-        return _RowItem(
-          title: '$prefix${p.title}',
-          date: _fmtDate(p.date),
-          onTap: () => context.push('/boards/fellow/${p.id}'),
-        );
-      }).toList(),
-    );
-  }
-}
-
-class _FellowNewsItem {
-  final String id;
-  final String title;
-  final DateTime date;
-  final String category;
-
-  const _FellowNewsItem({
-    required this.id,
-    required this.title,
-    required this.date,
-    required this.category,
-  });
 }

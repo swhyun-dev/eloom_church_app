@@ -174,7 +174,7 @@ class _BibleSearchTabState extends State<BibleSearchTab> {
                     child: ListView.separated(
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       itemCount: options.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      separatorBuilder: (_, _) => const Divider(height: 1),
                       itemBuilder: (context, index) {
                         final opt = options.elementAt(index);
                         return ListTile(
@@ -207,7 +207,7 @@ class _BibleSearchTabState extends State<BibleSearchTab> {
           Text(
             '팁: 책 이름은 일부만 입력해도 됩니다. (예: "마태" → 마태복음)\n'
                 '책이 여러 권으로 인식되면(예: "마") 자동완성 목록에서 선택해주세요.',
-            style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7), height: 1.35),
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7), height: 1.35),
           ),
         ],
       ),

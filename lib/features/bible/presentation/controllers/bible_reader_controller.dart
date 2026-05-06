@@ -101,7 +101,7 @@ class BibleReaderController extends ChangeNotifier {
 
   // ===== 형광펜 색 =====
   void setHighlightColor(Color c) {
-    _highlightColorValue = c.value;
+    _highlightColorValue = c.toARGB32();
     notifyListeners();
   }
 
@@ -211,7 +211,9 @@ class BibleReaderController extends ChangeNotifier {
     if (_bookId == null ||
         _bookKoName == null ||
         _chapter == null ||
-        _startVerse == null) return null;
+        _startVerse == null) {
+      return null;
+    }
 
     return (
     bookId: _bookId!,

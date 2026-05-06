@@ -113,15 +113,15 @@ class _HomeFooterInfo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textColor = Colors.black.withOpacity(0.65);
+    final textColor = Colors.black.withValues(alpha: 0.65);
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.55),
+        color: Colors.white.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.black.withOpacity(0.08)),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

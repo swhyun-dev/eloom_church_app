@@ -21,13 +21,13 @@ class PrayerDetailPage extends StatelessWidget {
           Row(
             children: [
               Icon(Icons.calendar_today_outlined,
-                  size: 16, color: Colors.black.withOpacity(0.45)),
+                  size: 16, color: Colors.black.withValues(alpha: 0.45)),
               const SizedBox(width: 8),
               Text(
                 formatYmd(item.date),
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
-                  color: Colors.black.withOpacity(0.6),
+                  color: Colors.black.withValues(alpha: 0.6),
                 ),
               ),
             ],
@@ -43,7 +43,7 @@ class PrayerDetailPage extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.black.withOpacity(0.08)),
+              border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
             ),
             child: Text(
               item.content,
