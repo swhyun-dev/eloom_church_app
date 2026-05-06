@@ -91,4 +91,16 @@ class PrayerService {
       'isPublic': isPublic,
     });
   }
+
+  Future<void> update(int id, {String? title, String? content, bool? isPublic}) async {
+    await _api.put('/api/v1/prayers/$id', {
+      if (title != null) 'title': title,
+      if (content != null) 'content': content,
+      if (isPublic != null) 'isPublic': isPublic,
+    });
+  }
+
+  Future<void> delete(int id) async {
+    await _api.delete('/api/v1/prayers/$id');
+  }
 }

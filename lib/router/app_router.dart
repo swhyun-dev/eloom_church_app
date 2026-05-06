@@ -286,7 +286,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/prayer/write',
-            builder: (context, state) => const PrayerWritePage(),
+            builder: (context, state) {
+              final extra = state.extra as MyPrayerItem?;
+              return PrayerWritePage(initial: extra);
+            },
           ),
 
           GoRoute(

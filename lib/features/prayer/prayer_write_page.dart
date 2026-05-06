@@ -49,26 +49,28 @@ class _PrayerWritePageState extends ConsumerState<PrayerWritePage> {
       return;
     }
 
-    // Edit mode (no PUT endpoint yet)
-    if (widget.initial != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('수정 기능은 준비 중입니다.')),
-      );
-      return;
-    }
-
     setState(() => _busy = true);
     try {
       final token = ref.read(authProvider).token;
-      await PrayerService(token: token).create(
-        content: content,
-        title: title,
-        isPublic: isPublic,
-      );
+      if (widget.initial != null) {
+        final id = int.tryParse(widget.initial!.id) ?? -1;
+        await PrayerService(token: token).update(
+          id,
+          title: title,
+          content: content,
+          isPublic: isPublic,
+        );
+      } else {
+        await PrayerService(token: token).create(
+          content: content,
+          title: title,
+          isPublic: isPublic,
+        );
+      }
       if (!mounted) return;
-      context.pop();
+      context.pop(true);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('기도제목이 등록되었습니다.')),
+        SnackBar(content: Text(widget.initial != null ? '기도제목이 수정되었습니다.' : '기도제목이 등록되었습니다.')),
       );
     } catch (e) {
       if (!mounted) return;

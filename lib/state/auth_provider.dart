@@ -102,6 +102,64 @@ class AuthNotifier extends StateNotifier<AuthState> {
       phone: phone,
       registry: registry,
     );
+
+    // 서버에서 최신 정보 백그라운드 갱신
+    refreshFromServer();
+  }
+
+  Future<void> refreshFromServer() async {
+    final token = state.token;
+    if (token == null || !state.isLoggedIn) return;
+    try {
+      final data = await ApiService(token: token).get('/api/v1/users/me');
+      final u = data['user'] as Map<String, dynamic>?;
+      if (u == null) return;
+
+      final roleStr = (u['role'] as String?) ?? '';
+      final role = AccountRole.values.firstWhere(
+        (r) => r.name == roleStr,
+        orElse: () => state.role,
+      );
+
+      final rm = u['registryMember'] as Map<String, dynamic>?;
+      ChurchRegistryPerson? registry;
+      final zone = u['zone'] as String?;
+      final parish = u['parish'] as String?;
+      if (rm != null && zone != null && parish != null) {
+        registry = ChurchRegistryPerson(
+          name: u['name'] as String? ?? state.name ?? '',
+          phone: u['phone'] as String? ?? state.phone ?? '',
+          position: u['position'] as String? ?? '',
+          parish: parish,
+          district: zone,
+          isDistrictLeader: rm['isLeader'] as bool? ?? false,
+        );
+      }
+
+      state = state.copyWith(
+        name: u['name'] as String?,
+        role: role,
+        address: u['address'] as String?,
+        registry: registry,
+      );
+      await _persist();
+    } catch (_) {
+      // 네트워크 오류 시 캐시 유지
+    }
+  }
+
+  Future<void> updateProfile({String? name, String? address}) async {
+    final token = state.token;
+    if (token == null) return;
+    await ApiService(token: token).put('/api/v1/users/me', {
+      if (name != null) 'name': name,
+      if (address != null) 'address': address,
+    });
+    state = state.copyWith(
+      name: name ?? state.name,
+      address: address ?? state.address,
+    );
+    await _persist();
   }
 
   Future<void> _persist() async {

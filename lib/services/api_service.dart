@@ -36,6 +36,12 @@ class ApiService {
     return decoded;
   }
 
+  Future<Map<String, dynamic>> put(String path, Map<String, dynamic> body) async {
+    final uri = Uri.parse('${ApiConfig.baseUrl}$path');
+    final res = await http.put(uri, headers: _headers, body: jsonEncode(body));
+    return _decode(res);
+  }
+
   Future<void> delete(String path) async {
     final uri = Uri.parse('${ApiConfig.baseUrl}$path');
     final res = await http.delete(uri, headers: _headers);

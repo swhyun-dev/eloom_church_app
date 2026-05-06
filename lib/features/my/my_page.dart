@@ -34,10 +34,15 @@ class MyPage extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('My'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.edit_outlined),
+            tooltip: '정보 수정',
+            onPressed: () => _showEditDialog(context, ref, auth),
+          ),
           TextButton(
             onPressed: () => ref.read(authProvider.notifier).logout(),
             child: const Text('로그아웃'),
-          )
+          ),
         ],
       ),
       body: ListView(
@@ -96,7 +101,10 @@ class MyPage extends ConsumerWidget {
           const SizedBox(height: 8),
 
           const _Section(title: '나의 주문 내역(교회카페)'),
-          const _Section(title: '알림 설정'),
+          _SingleLinkSection(
+            title: '알림 설정',
+            onTap: () => context.push('/settings'),
+          ),
           // ✅ 앱정보/버전 제거 (설정으로 이동)
           _SingleLinkSection(
             title: '개인정보처리방침',
@@ -172,6 +180,79 @@ class MyPage extends ConsumerWidget {
       ),
     );
   }
+}
+
+Future<void> _showEditDialog(BuildContext context, WidgetRef ref, AuthState auth) async {
+  final nameCtrl = TextEditingController(text: auth.name ?? '');
+  final addrCtrl = TextEditingController(text: auth.address ?? '');
+  bool busy = false;
+
+  await showDialog(
+    context: context,
+    builder: (dlg) => StatefulBuilder(
+      builder: (dlg, setDlgState) => AlertDialog(
+        title: const Text('정보 수정', style: TextStyle(fontWeight: FontWeight.w900)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameCtrl,
+              enabled: !busy,
+              decoration: const InputDecoration(
+                labelText: '이름',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: addrCtrl,
+              enabled: !busy,
+              decoration: const InputDecoration(
+                labelText: '주소',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: busy ? null : () => Navigator.pop(dlg),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: busy
+                ? null
+                : () async {
+                    setDlgState(() => busy = true);
+                    try {
+                      await ref.read(authProvider.notifier).updateProfile(
+                            name: nameCtrl.text.trim(),
+                            address: addrCtrl.text.trim(),
+                          );
+                      if (dlg.mounted) Navigator.pop(dlg);
+                    } catch (e) {
+                      setDlgState(() => busy = false);
+                      if (dlg.mounted) {
+                        ScaffoldMessenger.of(dlg).showSnackBar(
+                          SnackBar(content: Text('수정 실패: $e')),
+                        );
+                      }
+                    }
+                  },
+            child: busy
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  )
+                : const Text('저장'),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _ProfileCard extends StatelessWidget {

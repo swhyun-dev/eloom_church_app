@@ -268,6 +268,51 @@ class _CellNoticeDetailPageState extends ConsumerState<CellNoticeDetailPage> {
     _future = ZonePostService(token: token).fetchById(id);
   }
 
+  Future<void> _confirmEdit(BuildContext context, ZonePostData n) async {
+    final titleCtrl = TextEditingController(text: n.title);
+    final contentCtrl = TextEditingController(text: n.content);
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dlg) => AlertDialog(
+        title: const Text('공지 수정'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: titleCtrl,
+              decoration: const InputDecoration(labelText: '제목', border: OutlineInputBorder(), isDense: true),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: contentCtrl,
+              minLines: 3,
+              maxLines: 6,
+              decoration: const InputDecoration(labelText: '내용', border: OutlineInputBorder(), isDense: true),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dlg, false), child: const Text('취소')),
+          FilledButton(onPressed: () => Navigator.pop(dlg, true), child: const Text('저장')),
+        ],
+      ),
+    );
+    if (saved != true || !context.mounted) return;
+
+    final router = GoRouter.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final token = ref.read(authProvider).token;
+      await ZonePostService(token: token).update(n.id, title: titleCtrl.text.trim(), content: contentCtrl.text.trim());
+      if (!context.mounted) return;
+      router.pop();
+      messenger.showSnackBar(const SnackBar(content: Text('공지가 수정되었습니다.')));
+    } catch (e) {
+      if (!context.mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text('수정 실패: $e')));
+    }
+  }
+
   Future<void> _confirmDelete(BuildContext context, int id) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -340,16 +385,32 @@ class _CellNoticeDetailPageState extends ConsumerState<CellNoticeDetailPage> {
               ),
               if (isLeader) ...[
                 const SizedBox(height: 12),
-                SizedBox(
-                  height: 46,
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red,
-                      side: const BorderSide(color: Colors.red),
+                Row(
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: 46,
+                        child: OutlinedButton(
+                          onPressed: () => _confirmEdit(context, n),
+                          child: const Text('수정하기'),
+                        ),
+                      ),
                     ),
-                    onPressed: () => _confirmDelete(context, n.id),
-                    child: const Text('삭제하기'),
-                  ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: SizedBox(
+                        height: 46,
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.red,
+                            side: const BorderSide(color: Colors.red),
+                          ),
+                          onPressed: () => _confirmDelete(context, n.id),
+                          child: const Text('삭제하기'),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ],

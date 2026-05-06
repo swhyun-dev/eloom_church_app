@@ -50,6 +50,10 @@ class ZonePostService {
     await _api.post('/api/v1/zone-posts', {'title': title, 'content': content});
   }
 
+  Future<void> update(int id, {required String title, required String content}) async {
+    await _api.put('/api/v1/zone-posts/$id', {'title': title, 'content': content});
+  }
+
   Future<void> delete(int id) async {
     await _api.delete('/api/v1/zone-posts/$id');
   }
