@@ -12,7 +12,7 @@ import '../features/home/home_page.dart';
 import '../features/my/my_page.dart';
 
 import '../features/sermon/sermon_page.dart';
-import '../features/bulletin/bulletin_page.dart';
+import '../features/bulletin/presentation/pages/bulletin_page.dart';
 import '../features/bible/bible_page.dart';
 import '../features/cafe/cafe_page.dart';
 import '../features/cell/cell_page.dart';
@@ -27,8 +27,8 @@ import '../features/boards/board_detail_page.dart';
 import '../features/calendar/edu_calendar_page.dart';
 import '../features/calendar/edu_event_detail_page.dart';
 
-import '../features/bulletins/bulletin_gallery_page.dart';
-import '../features/bulletins/bulletin_detail_page.dart';
+import '../features/bulletin/presentation/pages/bulletin_gallery_page.dart';
+import '../features/bulletin/presentation/pages/bulletin_detail_page.dart';
 
 import '../features/offering/online_offering_page.dart';
 import '../features/offering/donation_receipt_page.dart';

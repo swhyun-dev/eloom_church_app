@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
-import '../../services/bulletin_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class BulletinPage extends StatefulWidget {
+import '../../../../core/widgets/async_value_builder.dart';
+import '../../domain/models/bulletin.dart';
+import '../providers/bulletin_providers.dart';
+
+/// 날짜(년/월/주일) 선택형 주보 뷰어.
+class BulletinPage extends ConsumerStatefulWidget {
   const BulletinPage({super.key});
 
   @override
-  State<BulletinPage> createState() => _BulletinPageState();
+  ConsumerState<BulletinPage> createState() => _BulletinPageState();
 }
 
-class _BulletinPageState extends State<BulletinPage> {
-  late final Future<List<BulletinData>> _future;
+class _BulletinPageState extends ConsumerState<BulletinPage> {
   int year = DateTime.now().year;
   int month = DateTime.now().month;
   int day = DateTime.now().day;
@@ -22,7 +26,6 @@ class _BulletinPageState extends State<BulletinPage> {
   @override
   void initState() {
     super.initState();
-    _future = BulletinService().fetchAll();
     _ensureValidDay();
   }
 
@@ -62,7 +65,7 @@ class _BulletinPageState extends State<BulletinPage> {
     ];
   }
 
-  BulletinData? _findBulletin(List<BulletinData> all) {
+  Bulletin? _findBulletin(List<Bulletin> all) {
     try {
       return all.firstWhere(
         (b) => b.date.year == year && b.date.month == month && b.date.day == day,
@@ -75,22 +78,18 @@ class _BulletinPageState extends State<BulletinPage> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final asyncList = ref.watch(bulletinListProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('교회주보'), centerTitle: true),
-      body: FutureBuilder<List<BulletinData>>(
-        future: _future,
-        builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snap.hasError) {
-            return Center(child: Text('오류: ${snap.error}'));
-          }
-
-          final all = snap.data ?? [];
+      body: AsyncValueBuilder<List<Bulletin>>(
+        value: asyncList,
+        onRetry: () => ref.invalidate(bulletinListProvider),
+        // 빈 목록도 그대로 화면 유지 (날짜 선택 UI는 보여줘야 함)
+        isEmpty: (_) => false,
+        builder: (all) {
           final bulletin = _findBulletin(all);
-          final images = bulletin?.imageUrls ?? [];
+          final images = bulletin?.imageUrls ?? const <String>[];
           final maxPage = images.isEmpty ? 0 : images.length - 1;
           final idx = pageIndex.clamp(0, maxPage);
 

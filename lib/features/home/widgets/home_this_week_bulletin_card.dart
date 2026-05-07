@@ -1,41 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../services/bulletin_service.dart';
 
-class HomeThisWeekBulletinCard extends StatefulWidget {
+import '../../bulletin/presentation/providers/bulletin_providers.dart';
+
+class HomeThisWeekBulletinCard extends ConsumerWidget {
   const HomeThisWeekBulletinCard({super.key});
 
   @override
-  State<HomeThisWeekBulletinCard> createState() => _HomeThisWeekBulletinCardState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final asyncList = ref.watch(bulletinListProvider);
 
-class _HomeThisWeekBulletinCardState extends State<HomeThisWeekBulletinCard> {
-  late final Future<BulletinData?> _future;
-
-  @override
-  void initState() {
-    super.initState();
-    _future = BulletinService().fetchAll().then((list) {
-      if (list.isEmpty) return null;
-      return (list..sort((a, b) => b.date.compareTo(a.date))).first;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<BulletinData?>(
-      future: _future,
-      builder: (context, snap) {
-        if (snap.connectionState != ConnectionState.done) {
-          return const SizedBox(
-            height: 190,
-            child: Card(child: Center(child: CircularProgressIndicator())),
-          );
-        }
-
-        final b = snap.data;
-        if (b == null) return const SizedBox.shrink();
-
+    return asyncList.when(
+      loading: () => const SizedBox(
+        height: 190,
+        child: Card(child: Center(child: CircularProgressIndicator())),
+      ),
+      error: (_, _) => const SizedBox.shrink(),
+      data: (list) {
+        if (list.isEmpty) return const SizedBox.shrink();
+        final b = (list.toList()..sort((a, b) => b.date.compareTo(a.date))).first;
         final date =
             '${b.date.year}/${b.date.month.toString().padLeft(2, '0')}/${b.date.day.toString().padLeft(2, '0')}';
 
@@ -77,7 +61,7 @@ class _HomeThisWeekBulletinCardState extends State<HomeThisWeekBulletinCard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        _Pill(text: '이번주 주보'),
+                        const _Pill(text: '이번주 주보'),
                         const SizedBox(height: 8),
                         Text(
                           b.title,
