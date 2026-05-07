@@ -1,3 +1,5 @@
+/// dummy/dummy_data.dart 전용 EduEvent (출시 시 dummy 폐기와 함께 제거 예정).
+/// 실제 화면은 BoardPost(BoardCategory.eduNotice)를 사용한다.
 class EduEvent {
   final int id;
   final String title;
@@ -18,14 +20,4 @@ class EduEvent {
     this.host,
     this.applyUrl,
   });
-
-  factory EduEvent.fromJson(Map<String, dynamic> j) {
-    return EduEvent(
-      id: j['id'] as int,
-      title: j['title'] as String,
-      description: j['content'] as String? ?? '',
-      startAt: DateTime.parse(j['startAt'] as String),
-      endAt: DateTime.parse(j['endAt'] as String),
-    );
-  }
 }

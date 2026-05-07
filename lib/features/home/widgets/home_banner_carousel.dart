@@ -1,27 +1,27 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
-import '../../../services/banner_service.dart';
 
-class HomeBannerCarousel extends StatefulWidget {
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../banner/domain/models/banner_slot.dart';
+import '../../banner/presentation/providers/banner_providers.dart';
+
+class HomeBannerCarousel extends ConsumerStatefulWidget {
   const HomeBannerCarousel({super.key});
 
   @override
-  State<HomeBannerCarousel> createState() => _HomeBannerCarouselState();
+  ConsumerState<HomeBannerCarousel> createState() => _HomeBannerCarouselState();
 }
 
-class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
-  late final Future<List<BannerData>> _future;
+class _HomeBannerCarouselState extends ConsumerState<HomeBannerCarousel> {
   final _ctrl = PageController();
   int _idx = 0;
   Timer? _timer;
+  int _lastTimerCount = 0;
 
-  @override
-  void initState() {
-    super.initState();
-    _future = BannerService().fetchActive();
-  }
-
-  void _startTimer(int count) {
+  void _ensureTimer(int count) {
+    if (count == _lastTimerCount) return;
+    _lastTimerCount = count;
     _timer?.cancel();
     if (count <= 1) return;
     _timer = Timer.periodic(const Duration(seconds: 4), (_) {
@@ -45,58 +45,32 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<BannerData>>(
-      future: _future,
-      builder: (context, snap) {
-        final banners = snap.data ?? [];
+    final async = ref.watch(activeBannersProvider);
 
-        if (snap.connectionState == ConnectionState.done && banners.isEmpty) {
-          return const SizedBox.shrink();
-        }
-
-        if (snap.connectionState == ConnectionState.done && _timer == null) {
-          _startTimer(banners.length);
-        }
-
-        final count = banners.isEmpty ? 1 : banners.length;
+    return async.when(
+      loading: () => _frame(
+        const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      ),
+      error: (_, _) => const SizedBox.shrink(),
+      data: (banners) {
+        if (banners.isEmpty) return const SizedBox.shrink();
+        _ensureTimer(banners.length);
 
         return Column(
           children: [
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xFFE7ECF2)),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(18),
-                child: AspectRatio(
-                  aspectRatio: 16 / 7,
-                  child: banners.isEmpty
-                      ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
-                      : PageView.builder(
-                          controller: _ctrl,
-                          onPageChanged: (i) => setState(() => _idx = i),
-                          itemCount: banners.length,
-                          itemBuilder: (_, i) {
-                            return Image.network(
-                              banners[i].imageUrl,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, _, _) => const Center(
-                                child: Icon(Icons.broken_image_outlined,
-                                    size: 42, color: Color(0xFFB7D7E7)),
-                              ),
-                            );
-                          },
-                        ),
-                ),
+            _frame(
+              PageView.builder(
+                controller: _ctrl,
+                onPageChanged: (i) => setState(() => _idx = i),
+                itemCount: banners.length,
+                itemBuilder: (_, i) => _BannerImage(banner: banners[i]),
               ),
             ),
             const SizedBox(height: 8),
             if (banners.length > 1)
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(count, (i) {
+                children: List.generate(banners.length, (i) {
                   final active = i == _idx;
                   return AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
@@ -115,6 +89,37 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
           ],
         );
       },
+    );
+  }
+
+  Widget _frame(Widget child) => Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFE7ECF2)),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: AspectRatio(
+            aspectRatio: 16 / 7,
+            child: child,
+          ),
+        ),
+      );
+}
+
+class _BannerImage extends StatelessWidget {
+  final BannerSlot banner;
+  const _BannerImage({required this.banner});
+
+  @override
+  Widget build(BuildContext context) {
+    return Image.network(
+      banner.imageUrl,
+      fit: BoxFit.cover,
+      errorBuilder: (_, _, _) => const Center(
+        child: Icon(Icons.broken_image_outlined, size: 42, color: Color(0xFFB7D7E7)),
+      ),
     );
   }
 }

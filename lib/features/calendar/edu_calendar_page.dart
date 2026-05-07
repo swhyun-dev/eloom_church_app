@@ -1,49 +1,50 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:table_calendar/table_calendar.dart';
-import '../../models/edu_event.dart';
-import '../../services/edu_event_service.dart';
 
-class EduCalendarPage extends StatefulWidget {
+import '../../core/widgets/async_value_builder.dart';
+import '../board/domain/models/board_category.dart';
+import '../board/domain/models/board_post.dart';
+import '../board/presentation/providers/board_providers.dart';
+
+class EduCalendarPage extends ConsumerStatefulWidget {
   const EduCalendarPage({super.key});
 
   @override
-  State<EduCalendarPage> createState() => _EduCalendarPageState();
+  ConsumerState<EduCalendarPage> createState() => _EduCalendarPageState();
 }
 
-class _EduCalendarPageState extends State<EduCalendarPage> {
-  late final Future<List<EduEvent>> _future;
+class _EduCalendarPageState extends ConsumerState<EduCalendarPage> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
 
-  @override
-  void initState() {
-    super.initState();
-    _future = EduEventService().fetchAll();
-  }
+  static const _category = BoardCategory.eduNotice;
 
-  List<EduEvent> _eventsOf(DateTime day, List<EduEvent> all) {
+  /// `startAt`/`endAt`가 모두 있는 EDU_NOTICE만 필터링.
+  List<BoardPost> _filterScheduled(List<BoardPost> all) =>
+      all.where((p) => p.startAt != null && p.endAt != null).toList();
+
+  List<BoardPost> _eventsOf(DateTime day, List<BoardPost> all) {
     bool sameDay(DateTime a, DateTime b) =>
         a.year == b.year && a.month == b.month && a.day == b.day;
-    return all.where((e) => sameDay(e.startAt, day)).toList()
-      ..sort((a, b) => a.startAt.compareTo(b.startAt));
+    return all.where((e) => sameDay(e.startAt!, day)).toList()
+      ..sort((a, b) => a.startAt!.compareTo(b.startAt!));
   }
 
   @override
   Widget build(BuildContext context) {
+    final asyncList = ref.watch(boardPostsByCategoryProvider(_category));
+
     return Scaffold(
       appBar: AppBar(title: const Text('교육일정')),
-      body: FutureBuilder<List<EduEvent>>(
-        future: _future,
-        builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snap.hasError) {
-            return Center(child: Text('오류: ${snap.error}'));
-          }
-
-          final all = snap.data ?? [];
+      body: AsyncValueBuilder<List<BoardPost>>(
+        value: asyncList,
+        onRetry: () => ref.invalidate(boardPostsByCategoryProvider(_category)),
+        // 빈 상태도 캘린더는 표시
+        isEmpty: (_) => false,
+        builder: (raw) {
+          final all = _filterScheduled(raw);
           final selected = _selectedDay ?? _focusedDay;
           final events = _eventsOf(selected, all);
 
@@ -102,16 +103,18 @@ class _EduCalendarPageState extends State<EduCalendarPage> {
 }
 
 class _EventCard extends StatelessWidget {
-  final EduEvent event;
+  final BoardPost event;
   final VoidCallback onTap;
 
   const _EventCard({required this.event, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
+    final start = event.startAt!;
+    final end = event.endAt!;
     final time =
-        '${event.startAt.hour.toString().padLeft(2, '0')}:${event.startAt.minute.toString().padLeft(2, '0')} ~ '
-        '${event.endAt.hour.toString().padLeft(2, '0')}:${event.endAt.minute.toString().padLeft(2, '0')}';
+        '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')} ~ '
+        '${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}';
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -134,15 +137,14 @@ class _EventCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    if (_eduBadge(event.startAt) != null)
-                      _Tag(text: _eduBadge(event.startAt)!),
+                    if (_eduBadge(start) != null) _Tag(text: _eduBadge(start)!),
                   ],
                 ),
                 const SizedBox(height: 6),
                 Text(time, style: const TextStyle(color: Colors.black54)),
-                if (event.description.isNotEmpty) ...[
+                if (event.content.isNotEmpty) ...[
                   const SizedBox(height: 6),
-                  Text(event.description, maxLines: 2, overflow: TextOverflow.ellipsis),
+                  Text(event.content, maxLines: 2, overflow: TextOverflow.ellipsis),
                 ],
               ],
             ),

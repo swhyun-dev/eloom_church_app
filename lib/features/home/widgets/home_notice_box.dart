@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../models/edu_event.dart';
-import '../../../services/edu_event_service.dart';
 import '../../board/domain/models/board_category.dart';
+import '../../board/domain/models/board_post.dart';
 import '../../board/presentation/providers/board_providers.dart';
 
 class HomeNoticeBox extends StatefulWidget {
@@ -68,7 +67,7 @@ class _HomeNoticeBoxState extends State<HomeNoticeBox> {
 
             if (idx == 0) const _BoardPreview(category: BoardCategory.churchNews, type: 'news'),
             if (idx == 1) const _BoardPreview(category: BoardCategory.meetingNotice, type: 'notice'),
-            if (idx == 2) _EduPreview(),
+            if (idx == 2) const _EduPreview(),
             if (idx == 3) const _BoardPreview(category: BoardCategory.memberNews, type: 'fellow'),
           ],
         ),
@@ -165,41 +164,31 @@ class _BoardPreview extends ConsumerWidget {
   }
 }
 
-class _EduPreview extends StatefulWidget {
-  @override
-  State<_EduPreview> createState() => _EduPreviewState();
-}
-
-class _EduPreviewState extends State<_EduPreview> {
-  late final Future<List<EduEvent>> _future;
+class _EduPreview extends ConsumerWidget {
+  const _EduPreview();
 
   @override
-  void initState() {
-    super.initState();
-    _future = EduEventService().fetchAll();
-  }
+  Widget build(BuildContext context, WidgetRef ref) {
+    final asyncList = ref.watch(boardPostsByCategoryProvider(BoardCategory.eduNotice));
 
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<List<EduEvent>>(
-      future: _future,
-      builder: (context, snap) {
-        if (snap.connectionState != ConnectionState.done) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 10),
-            child: Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))),
-          );
-        }
-
+    return asyncList.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.symmetric(vertical: 10),
+        child: Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))),
+      ),
+      error: (_, _) => _PreviewList(children: const []),
+      data: (raw) {
         final now = DateTime.now();
-        final items = [...(snap.data ?? <EduEvent>[])]..sort((a, b) => a.startAt.compareTo(b.startAt));
-        final upcoming = items.where((e) => !e.endAt.isBefore(now)).take(3).toList();
+        final items = [...raw.where((e) => e.startAt != null && e.endAt != null)]
+          ..sort((a, b) => a.startAt!.compareTo(b.startAt!));
+        final upcoming = items.where((e) => !e.endAt!.isBefore(now)).take(3).toList();
         final top3 = upcoming.isNotEmpty ? upcoming : items.take(3).toList();
 
         return _PreviewList(
-          children: top3.map<Widget>((EduEvent e) {
-            final badge = _eduBadge(e.startAt);
-            final dateText = badge != null ? '$badge / ${_fmtDateTime(e.startAt)}' : _fmtDateTime(e.startAt);
+          children: top3.map<Widget>((BoardPost e) {
+            final start = e.startAt!;
+            final badge = _eduBadge(start);
+            final dateText = badge != null ? '$badge / ${_fmtDateTime(start)}' : _fmtDateTime(start);
             return _RowItem(
               title: e.title,
               date: dateText,
