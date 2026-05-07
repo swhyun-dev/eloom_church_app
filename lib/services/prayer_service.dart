@@ -93,7 +93,7 @@ class PrayerService {
   }
 
   Future<void> update(int id, {String? title, String? content, bool? isPublic}) async {
-    await _api.put('/api/v1/prayers/$id', {
+    await _api.patch('/api/v1/prayers/$id', {
       if (title != null) 'title': title,
       if (content != null) 'content': content,
       if (isPublic != null) 'isPublic': isPublic,
