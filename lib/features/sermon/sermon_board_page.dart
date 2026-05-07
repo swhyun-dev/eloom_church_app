@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../config/links.dart';
+
 class SermonBoardPage extends StatelessWidget {
   const SermonBoardPage({super.key});
 
@@ -20,25 +22,25 @@ class SermonBoardPage extends StatelessWidget {
       _SermonCollectionItem(
         title: '주일예배설교',
         subtitle: 'Sunday Worship',
-        url: 'https://www.eloomtv.com/main/sub.html?pageCode=8',
+        url: AppLinks.sermonSundayWorshipUrl,
         icon: Icons.church,
       ),
       _SermonCollectionItem(
         title: '부교역자설교',
         subtitle: 'Assistant Pastors',
-        url: 'https://www.eloomtv.com/main/sub.html?pageCode=9',
+        url: AppLinks.sermonAssistantPastorsUrl,
         icon: Icons.record_voice_over,
       ),
       _SermonCollectionItem(
         title: '초청강사설교',
         subtitle: 'Guest Speakers',
-        url: 'https://www.eloomtv.com/main/sub.html?pageCode=10',
+        url: AppLinks.sermonGuestSpeakersUrl,
         icon: Icons.person,
       ),
       _SermonCollectionItem(
         title: '특별집회',
         subtitle: 'Special Meetings',
-        url: 'https://www.eloomtv.com/main/sub.html?pageCode=11',
+        url: AppLinks.sermonSpecialMeetingsUrl,
         icon: Icons.event,
       ),
     ];
