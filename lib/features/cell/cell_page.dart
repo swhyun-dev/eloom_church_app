@@ -3,8 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../services/zone_post_service.dart';
-import '../../services/prayer_service.dart';
 import '../../state/auth_provider.dart';
+import '../prayer/domain/models/prayer.dart';
+import '../prayer/presentation/providers/prayer_providers.dart';
 
 class CellPage extends ConsumerWidget {
   final int initialTab;
@@ -549,14 +550,7 @@ class CellPrayerTitlesPage extends ConsumerStatefulWidget {
 }
 
 class _CellPrayerTitlesPageState extends ConsumerState<CellPrayerTitlesPage> {
-  late final Future<List<ZonePrayerData>> _future;
   String? selectedName;
-
-  @override
-  void initState() {
-    super.initState();
-    _future = PrayerService().fetchZone();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -569,19 +563,15 @@ class _CellPrayerTitlesPageState extends ConsumerState<CellPrayerTitlesPage> {
       );
     }
 
+    final asyncList = ref.watch(zonePrayersProvider);
+
     return Scaffold(
       appBar: AppBar(title: const Text('구역원 기도 제목'), centerTitle: true),
-      body: FutureBuilder<List<ZonePrayerData>>(
-        future: _future,
-        builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snap.hasError) {
-            return Center(child: Text('오류: ${snap.error}'));
-          }
-
-          final all = (snap.data ?? [])..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      body: asyncList.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('오류: $e')),
+        data: (raw) {
+          final all = [...raw]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
           final names = <String>{};
           for (final p in all) {
@@ -594,7 +584,7 @@ class _CellPrayerTitlesPageState extends ConsumerState<CellPrayerTitlesPage> {
           }
 
           final filtered = selectedName == null
-              ? <ZonePrayerData>[]
+              ? <Prayer>[]
               : all.where((p) => p.authorName == selectedName).toList();
 
           return Column(

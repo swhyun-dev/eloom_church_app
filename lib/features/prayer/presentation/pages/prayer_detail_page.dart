@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import 'prayer_models.dart';
+import '../../prayer_models.dart';
 
 class PrayerDetailPage extends StatelessWidget {
   final PrayerItem item;

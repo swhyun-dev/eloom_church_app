@@ -2,147 +2,45 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'prayer_models.dart';
-import 'widgets/privacy_chip.dart';
-import '../../services/prayer_service.dart';
+import '../../../../core/widgets/async_value_builder.dart';
+import '../../domain/models/prayer.dart';
+import '../../prayer_models.dart';
+import '../../widgets/privacy_chip.dart';
+import '../providers/prayer_providers.dart';
 
-class MyPrayerDetailPage extends ConsumerStatefulWidget {
+class MyPrayerDetailPage extends ConsumerWidget {
   final String id;
 
   const MyPrayerDetailPage({super.key, required this.id});
 
   @override
-  ConsumerState<MyPrayerDetailPage> createState() => _MyPrayerDetailPageState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final intId = int.tryParse(id) ?? -1;
+    final async = ref.watch(minePrayerByIdProvider(intId));
 
-class _MyPrayerDetailPageState extends ConsumerState<MyPrayerDetailPage> {
-  late final Future<PrayerData?> _future;
-
-  Future<void> _showOptions(BuildContext context, PrayerData d) async {
-    await showModalBottomSheet(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.edit_outlined),
-              title: const Text('수정하기'),
-              onTap: () async {
-                Navigator.pop(ctx);
-                final item = MyPrayerItem(
-                  id: d.id.toString(),
-                  date: d.createdAt,
-                  title: d.title,
-                  content: d.content,
-                  isPublic: d.isPublic,
-                );
-                final updated = await context.push<bool>('/prayer/write', extra: item);
-                if (updated == true && mounted) {
-                  final intId = int.tryParse(widget.id) ?? -1;
-                  setState(() {
-                    _future = PrayerService().fetchMine().then(
-                      (list) {
-                        try { return list.firstWhere((p) => p.id == intId); }
-                        catch (_) { return null; }
-                      },
-                    );
-                  });
-                }
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete_outline, color: Colors.red),
-              title: const Text('삭제하기', style: TextStyle(color: Colors.red)),
-              onTap: () async {
-                Navigator.pop(ctx);
-                final ok = await showDialog<bool>(
-                  context: context,
-                  builder: (dlg) => AlertDialog(
-                    title: const Text('기도제목 삭제'),
-                    content: const Text('이 기도제목을 삭제하시겠습니까?'),
-                    actions: [
-                      TextButton(onPressed: () => Navigator.pop(dlg, false), child: const Text('취소')),
-                      FilledButton(
-                        style: FilledButton.styleFrom(backgroundColor: Colors.red),
-                        onPressed: () => Navigator.pop(dlg, true),
-                        child: const Text('삭제'),
-                      ),
-                    ],
-                  ),
-                );
-                if (ok != true || !context.mounted) return;
-                try {
-                  await PrayerService().delete(d.id);
-                  if (context.mounted) {
-                    context.pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('기도제목이 삭제되었습니다.')),
-                    );
-                  }
-                } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('삭제 실패: $e')));
-                  }
-                }
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    final intId = int.tryParse(widget.id) ?? -1;
-    _future = PrayerService().fetchMine().then(
-          (list) {
-            try {
-              return list.firstWhere((p) => p.id == intId);
-            } catch (_) {
-              return null;
-            }
-          },
-        );
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('기도제목'),
         centerTitle: true,
         actions: [
-          FutureBuilder<PrayerData?>(
-            future: _future,
-            builder: (context, snap) {
-              if (snap.data == null) return const SizedBox.shrink();
-              return IconButton(
-                icon: const Icon(Icons.more_vert),
-                onPressed: () => _showOptions(context, snap.data!),
-              );
-            },
+          async.maybeWhen(
+            data: (d) => d == null
+                ? const SizedBox.shrink()
+                : IconButton(
+                    icon: const Icon(Icons.more_vert),
+                    onPressed: () => _showOptions(context, ref, d),
+                  ),
+            orElse: () => const SizedBox.shrink(),
           ),
         ],
       ),
-      body: FutureBuilder<PrayerData?>(
-        future: _future,
-        builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snap.hasError) {
-            return Center(child: Text('오류: ${snap.error}'));
-          }
-          final d = snap.data;
-          if (d == null) {
-            return Scaffold(
-              body: const Center(child: Text('항목을 찾을 수 없습니다.')),
-            );
-          }
-
+      body: AsyncValueBuilder<Prayer?>(
+        value: async,
+        onRetry: () => ref.invalidate(minePrayersProvider),
+        isEmpty: (p) => p == null,
+        emptyMessage: '항목을 찾을 수 없습니다.',
+        builder: (p) {
+          final d = p!;
           final st = _privacyStyle(d.isPublic);
 
           return ListView(
@@ -229,7 +127,7 @@ class _MyPrayerDetailPageState extends ConsumerState<MyPrayerDetailPage> {
                     child: SizedBox(
                       height: 46,
                       child: FilledButton(
-                        onPressed: () => _showOptions(context, d),
+                        onPressed: () => _showOptions(context, ref, d),
                         style: FilledButton.styleFrom(
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         ),
@@ -242,6 +140,74 @@ class _MyPrayerDetailPageState extends ConsumerState<MyPrayerDetailPage> {
             ],
           );
         },
+      ),
+    );
+  }
+
+  Future<void> _showOptions(BuildContext context, WidgetRef ref, Prayer d) async {
+    await showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit_outlined),
+              title: const Text('수정하기'),
+              onTap: () async {
+                Navigator.pop(ctx);
+                final item = MyPrayerItem(
+                  id: d.id.toString(),
+                  date: d.createdAt,
+                  title: d.title,
+                  content: d.content,
+                  isPublic: d.isPublic,
+                );
+                final updated = await context.push<bool>('/prayer/write', extra: item);
+                if (updated == true) {
+                  ref.invalidate(minePrayersProvider);
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline, color: Colors.red),
+              title: const Text('삭제하기', style: TextStyle(color: Colors.red)),
+              onTap: () async {
+                Navigator.pop(ctx);
+                final ok = await showDialog<bool>(
+                  context: context,
+                  builder: (dlg) => AlertDialog(
+                    title: const Text('기도제목 삭제'),
+                    content: const Text('이 기도제목을 삭제하시겠습니까?'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(dlg, false), child: const Text('취소')),
+                      FilledButton(
+                        style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                        onPressed: () => Navigator.pop(dlg, true),
+                        child: const Text('삭제'),
+                      ),
+                    ],
+                  ),
+                );
+                if (ok != true || !context.mounted) return;
+                try {
+                  await ref.read(prayerRepositoryProvider).delete(d.id);
+                  ref.invalidate(minePrayersProvider);
+                  if (context.mounted) {
+                    context.pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('기도제목이 삭제되었습니다.')),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('삭제 실패: $e')));
+                  }
+                }
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

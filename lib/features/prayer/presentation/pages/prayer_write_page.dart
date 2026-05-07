@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'prayer_models.dart';
-import '../../services/prayer_service.dart';
+
+import '../../domain/models/prayer.dart';
+import '../../prayer_models.dart';
+import '../providers/prayer_providers.dart';
 
 class PrayerWritePage extends ConsumerStatefulWidget {
   final MyPrayerItem? initial;
@@ -50,21 +52,24 @@ class _PrayerWritePageState extends ConsumerState<PrayerWritePage> {
 
     setState(() => _busy = true);
     try {
+      final repo = ref.read(prayerRepositoryProvider);
       if (widget.initial != null) {
         final id = int.tryParse(widget.initial!.id) ?? -1;
-        await PrayerService().update(
+        await repo.update(
           id,
           title: title,
           content: content,
           isPublic: isPublic,
         );
       } else {
-        await PrayerService().create(
-          content: content,
+        await repo.create(
+          type: PrayerType.personal,
           title: title,
+          content: content,
           isPublic: isPublic,
         );
       }
+      ref.invalidate(minePrayersProvider);
       if (!mounted) return;
       context.pop(true);
       ScaffoldMessenger.of(context).showSnackBar(

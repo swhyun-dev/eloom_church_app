@@ -42,11 +42,11 @@ import '../features/auth/signup_page.dart';
 import '../features/auth/address_search_page.dart';
 import '../features/settings/settings_page.dart';
 
-import '../features/prayer/prayer_page.dart';
-import '../features/prayer/prayer_detail_page.dart';
-import '../features/prayer/prayer_write_page.dart';
+import '../features/prayer/presentation/pages/prayer_page.dart';
+import '../features/prayer/presentation/pages/prayer_detail_page.dart';
+import '../features/prayer/presentation/pages/prayer_write_page.dart';
 import '../features/prayer/prayer_models.dart';
-import '../features/prayer/my_prayer_detail_page.dart';
+import '../features/prayer/presentation/pages/my_prayer_detail_page.dart';
 // ✅ 새 회원가입 플로우
 import '../features/auth/signup/signup_terms_page.dart';
 import '../features/auth/signup/signup_info_page.dart';
