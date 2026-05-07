@@ -31,9 +31,8 @@ class _PrayerPageState extends ConsumerState<PrayerPage> {
   }
 
   void _loadData() {
-    final token = ref.read(authProvider).token;
-    _communalFuture = PrayerService(token: null).fetchCommon();
-    _myFuture = PrayerService(token: token).fetchMine();
+    _communalFuture = PrayerService().fetchCommon();
+    _myFuture = PrayerService().fetchMine();
   }
 
   @override

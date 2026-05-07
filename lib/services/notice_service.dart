@@ -26,7 +26,7 @@ class NoticeItem {
 
 class NoticeService {
   final ApiService _api;
-  NoticeService({String? token}) : _api = ApiService(token: token);
+  NoticeService() : _api = ApiService();
 
   Future<List<NoticeItem>> fetchAll() async {
     final data = await _api.get('/api/v1/notices');

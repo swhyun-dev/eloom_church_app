@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import 'app.dart';
+import 'core/http/app_dio.dart';
 import 'features/bible/domain/models/bible_memo.dart';
 import 'features/core/di/service_locator.dart';
 import 'state/auth_provider.dart';
@@ -27,6 +28,10 @@ Future<void> main() async {
   // SharedPreferences에서 로그인 상태 복원
   final container = ProviderContainer();
   await container.read(authProvider.notifier).init();
+
+  // 401 응답 시 자동 로그아웃 (TokenStorage.clear는 인터셉터에서 처리)
+  AppDio.onUnauthorized = () =>
+      container.read(authProvider.notifier).logout();
 
   runApp(UncontrolledProviderScope(container: container, child: const App()));
 }

@@ -1,60 +1,67 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart';
+
 import '../config/api_config.dart';
+import '../core/http/app_dio.dart';
 
 class ApiService {
-  final String? token;
-  const ApiService({this.token});
+  ApiService();
 
-  Map<String, String> get _headers => {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        if (token != null && token!.isNotEmpty) 'Authorization': 'Bearer $token',
-      };
+  Dio get _dio => AppDio.instance;
 
   Future<Map<String, dynamic>> get(String path, {Map<String, String>? query}) async {
-    final uri = Uri.parse('${ApiConfig.baseUrl}$path')
-        .replace(queryParameters: query?.isNotEmpty == true ? query : null);
-    final res = await http.get(uri, headers: _headers);
-    return _decode(res);
+    try {
+      final res = await _dio.get<Map<String, dynamic>>(
+        path,
+        queryParameters: query?.isNotEmpty == true ? query : null,
+      );
+      return res.data ?? const {};
+    } on DioException catch (e) {
+      throw _toException(e);
+    }
   }
 
   Future<Map<String, dynamic>> post(String path, Map<String, dynamic> body) async {
-    final uri = Uri.parse('${ApiConfig.baseUrl}$path');
-    final res = await http.post(uri, headers: _headers, body: jsonEncode(body));
-    return _decode(res);
-  }
-
-  Map<String, dynamic> _decode(http.Response res) {
-    final decoded = jsonDecode(utf8.decode(res.bodyBytes));
-    if (decoded is! Map<String, dynamic>) {
-      throw Exception('응답 형식이 올바르지 않습니다.');
+    try {
+      final res = await _dio.post<Map<String, dynamic>>(path, data: body);
+      return res.data ?? const {};
+    } on DioException catch (e) {
+      throw _toException(e);
     }
-    if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception((decoded['message'] as String?) ?? '요청에 실패했습니다. (${res.statusCode})');
-    }
-    return decoded;
   }
 
   Future<Map<String, dynamic>> put(String path, Map<String, dynamic> body) async {
-    final uri = Uri.parse('${ApiConfig.baseUrl}$path');
-    final res = await http.put(uri, headers: _headers, body: jsonEncode(body));
-    return _decode(res);
+    try {
+      final res = await _dio.put<Map<String, dynamic>>(path, data: body);
+      return res.data ?? const {};
+    } on DioException catch (e) {
+      throw _toException(e);
+    }
   }
 
   Future<Map<String, dynamic>> patch(String path, Map<String, dynamic> body) async {
-    final uri = Uri.parse('${ApiConfig.baseUrl}$path');
-    final res = await http.patch(uri, headers: _headers, body: jsonEncode(body));
-    return _decode(res);
+    try {
+      final res = await _dio.patch<Map<String, dynamic>>(path, data: body);
+      return res.data ?? const {};
+    } on DioException catch (e) {
+      throw _toException(e);
+    }
   }
 
   Future<void> delete(String path) async {
-    final uri = Uri.parse('${ApiConfig.baseUrl}$path');
-    final res = await http.delete(uri, headers: _headers);
-    if (res.statusCode < 200 || res.statusCode >= 300) {
-      final decoded = jsonDecode(utf8.decode(res.bodyBytes));
-      throw Exception((decoded['message'] as String?) ?? '삭제에 실패했습니다. (${res.statusCode})');
+    try {
+      await _dio.delete(path);
+    } on DioException catch (e) {
+      throw _toException(e);
     }
+  }
+
+  Exception _toException(DioException e) {
+    final data = e.response?.data;
+    if (data is Map && data['message'] is String) {
+      return Exception(data['message'] as String);
+    }
+    final code = e.response?.statusCode;
+    return Exception('요청에 실패했습니다.${code != null ? ' ($code)' : ''}');
   }
 
   static String absoluteUrl(String? path) {

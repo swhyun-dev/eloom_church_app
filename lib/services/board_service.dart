@@ -44,7 +44,7 @@ class BoardPostData {
 
 class BoardService {
   final ApiService _api;
-  BoardService() : _api = const ApiService();
+  BoardService() : _api = ApiService();
 
   Future<List<BoardPostData>> fetchByCategory(String category) async {
     final data = await _api.get('/api/v1/board-posts', query: {'category': category});

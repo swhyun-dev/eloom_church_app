@@ -29,7 +29,7 @@ class ZonePostData {
 
 class ZonePostService {
   final ApiService _api;
-  ZonePostService({String? token}) : _api = ApiService(token: token);
+  ZonePostService() : _api = ApiService();
 
   Future<List<ZonePostData>> fetchAll() async {
     final data = await _api.get('/api/v1/zone-posts');

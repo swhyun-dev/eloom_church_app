@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'prayer_models.dart';
 import '../../services/prayer_service.dart';
-import '../../state/auth_provider.dart';
 
 class PrayerWritePage extends ConsumerStatefulWidget {
   final MyPrayerItem? initial;
@@ -51,17 +50,16 @@ class _PrayerWritePageState extends ConsumerState<PrayerWritePage> {
 
     setState(() => _busy = true);
     try {
-      final token = ref.read(authProvider).token;
       if (widget.initial != null) {
         final id = int.tryParse(widget.initial!.id) ?? -1;
-        await PrayerService(token: token).update(
+        await PrayerService().update(
           id,
           title: title,
           content: content,
           isPublic: isPublic,
         );
       } else {
-        await PrayerService(token: token).create(
+        await PrayerService().create(
           content: content,
           title: title,
           isPublic: isPublic,

@@ -89,8 +89,7 @@ class _CellBoardTabState extends ConsumerState<_CellBoardTab> {
   }
 
   void _load() {
-    final token = ref.read(authProvider).token;
-    _future = ZonePostService(token: token).fetchAll();
+    _future = ZonePostService().fetchAll();
   }
 
   @override
@@ -170,8 +169,7 @@ class _CellNoticeListPageState extends ConsumerState<CellNoticeListPage> {
   }
 
   void _load() {
-    final token = ref.read(authProvider).token;
-    _future = ZonePostService(token: token).fetchAll();
+    _future = ZonePostService().fetchAll();
   }
 
   @override
@@ -263,9 +261,8 @@ class _CellNoticeDetailPageState extends ConsumerState<CellNoticeDetailPage> {
   @override
   void initState() {
     super.initState();
-    final token = ref.read(authProvider).token;
     final id = int.tryParse(widget.noticeId) ?? -1;
-    _future = ZonePostService(token: token).fetchById(id);
+    _future = ZonePostService().fetchById(id);
   }
 
   Future<void> _confirmEdit(BuildContext context, ZonePostData n) async {
@@ -302,8 +299,7 @@ class _CellNoticeDetailPageState extends ConsumerState<CellNoticeDetailPage> {
     final router = GoRouter.of(context);
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final token = ref.read(authProvider).token;
-      await ZonePostService(token: token).update(n.id, title: titleCtrl.text.trim(), content: contentCtrl.text.trim());
+      await ZonePostService().update(n.id, title: titleCtrl.text.trim(), content: contentCtrl.text.trim());
       if (!context.mounted) return;
       router.pop();
       messenger.showSnackBar(const SnackBar(content: Text('공지가 수정되었습니다.')));
@@ -335,8 +331,7 @@ class _CellNoticeDetailPageState extends ConsumerState<CellNoticeDetailPage> {
     final messenger = ScaffoldMessenger.of(context);
 
     try {
-      final token = ref.read(authProvider).token;
-      await ZonePostService(token: token).delete(id);
+      await ZonePostService().delete(id);
       if (!context.mounted) return;
       router.pop();
       messenger.showSnackBar(const SnackBar(content: Text('공지가 삭제되었습니다.')));
@@ -455,8 +450,7 @@ class _CellNoticeWritePageState extends ConsumerState<CellNoticeWritePage> {
 
     setState(() => _busy = true);
     try {
-      final token = ref.read(authProvider).token;
-      await ZonePostService(token: token).create(title: title, content: content);
+      await ZonePostService().create(title: title, content: content);
       if (!mounted) return;
       context.pop();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -561,8 +555,7 @@ class _CellPrayerTitlesPageState extends ConsumerState<CellPrayerTitlesPage> {
   @override
   void initState() {
     super.initState();
-    final token = ref.read(authProvider).token;
-    _future = PrayerService(token: token).fetchZone();
+    _future = PrayerService().fetchZone();
   }
 
   @override

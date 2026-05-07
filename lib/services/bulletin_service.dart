@@ -35,7 +35,7 @@ class BulletinData {
 
 class BulletinService {
   final ApiService _api;
-  BulletinService() : _api = const ApiService();
+  BulletinService() : _api = ApiService();
 
   Future<List<BulletinData>> fetchAll() async {
     final data = await _api.get('/api/v1/bulletins');

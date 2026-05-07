@@ -122,7 +122,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final token = state.token;
     if (token == null || !state.isLoggedIn) return;
     try {
-      final data = await ApiService(token: token).get('/api/v1/users/me');
+      final data = await ApiService().get('/api/v1/users/me');
       final u = data['user'] as Map<String, dynamic>?;
       if (u == null) return;
 
@@ -162,7 +162,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> updateProfile({String? name, String? address}) async {
     final token = state.token;
     if (token == null) return;
-    await ApiService(token: token).put('/api/v1/users/me', {
+    await ApiService().put('/api/v1/users/me', {
       if (name != null) 'name': name,
       if (address != null) 'address': address,
     });
@@ -267,7 +267,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final token = state.token;
     if (token == null || fcmToken.isEmpty) return;
     try {
-      await ApiService(token: token).post('/api/v1/devices/token', {
+      await ApiService().post('/api/v1/devices/token', {
         'token': fcmToken,
         'platform': 'flutter',
       });
@@ -278,7 +278,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final token = state.token;
     if (token == null) return;
     try {
-      await ApiService(token: token).delete('/api/v1/users/me');
+      await ApiService().delete('/api/v1/users/me');
     } finally {
       state = AuthState.guest;
       _persist();

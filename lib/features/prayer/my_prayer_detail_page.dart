@@ -3,10 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'prayer_models.dart';
-import 'prayer_write_page.dart';
 import 'widgets/privacy_chip.dart';
 import '../../services/prayer_service.dart';
-import '../../state/auth_provider.dart';
 
 class MyPrayerDetailPage extends ConsumerStatefulWidget {
   final String id;
@@ -41,10 +39,9 @@ class _MyPrayerDetailPageState extends ConsumerState<MyPrayerDetailPage> {
                 );
                 final updated = await context.push<bool>('/prayer/write', extra: item);
                 if (updated == true && mounted) {
-                  final token = ref.read(authProvider).token;
                   final intId = int.tryParse(widget.id) ?? -1;
                   setState(() {
-                    _future = PrayerService(token: token).fetchMine().then(
+                    _future = PrayerService().fetchMine().then(
                       (list) {
                         try { return list.firstWhere((p) => p.id == intId); }
                         catch (_) { return null; }
@@ -76,8 +73,7 @@ class _MyPrayerDetailPageState extends ConsumerState<MyPrayerDetailPage> {
                 );
                 if (ok != true || !context.mounted) return;
                 try {
-                  final token = ref.read(authProvider).token;
-                  await PrayerService(token: token).delete(d.id);
+                  await PrayerService().delete(d.id);
                   if (context.mounted) {
                     context.pop();
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -100,9 +96,8 @@ class _MyPrayerDetailPageState extends ConsumerState<MyPrayerDetailPage> {
   @override
   void initState() {
     super.initState();
-    final token = ref.read(authProvider).token;
     final intId = int.tryParse(widget.id) ?? -1;
-    _future = PrayerService(token: token).fetchMine().then(
+    _future = PrayerService().fetchMine().then(
           (list) {
             try {
               return list.firstWhere((p) => p.id == intId);

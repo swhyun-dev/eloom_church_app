@@ -59,7 +59,7 @@ class ZonePrayerData {
 
 class PrayerService {
   final ApiService _api;
-  PrayerService({String? token}) : _api = ApiService(token: token);
+  PrayerService() : _api = ApiService();
 
   Future<List<PrayerData>> fetchCommon() async {
     final data = await _api.get('/api/v1/prayers/common');
