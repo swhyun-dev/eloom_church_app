@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../core/storage/token_storage.dart';
 import '../models/account_role.dart';
 import '../models/church_registry_person.dart';
 import '../services/api_service.dart';
@@ -64,7 +65,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
+
+    // 토큰: secure storage 우선, 없으면 SP에서 1회 이전
+    String? token = await TokenStorage.read();
+    if (token == null || token.isEmpty) {
+      final legacy = prefs.getString('auth_token');
+      if (legacy != null && legacy.isNotEmpty) {
+        await TokenStorage.write(legacy);
+        await prefs.remove('auth_token');
+        token = legacy;
+      }
+    }
     if (token == null || token.isEmpty) return;
 
     final name = prefs.getString('auth_name') ?? '';
@@ -165,7 +176,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> _persist() async {
     final prefs = await SharedPreferences.getInstance();
     if (state.isLoggedIn && state.token != null) {
-      await prefs.setString('auth_token', state.token!);
+      await TokenStorage.write(state.token!);
       await prefs.setString('auth_name', state.name ?? '');
       await prefs.setString('auth_userId', state.userId ?? '');
       await prefs.setString('auth_role', state.role.name);
@@ -178,6 +189,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         await prefs.setBool('auth_isLeader', r.isDistrictLeader);
       }
     } else {
+      await TokenStorage.clear();
       for (final key in [
         'auth_token', 'auth_name', 'auth_userId', 'auth_phone',
         'auth_role', 'auth_zone', 'auth_parish', 'auth_position',
