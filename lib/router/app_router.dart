@@ -53,6 +53,7 @@ import '../features/auth/signup/signup_info_page.dart';
 import '../features/auth/signup/signup_sms_verify_page.dart';
 
 import '../features/ministry/ministry_page.dart';
+import '../features/notice/presentation/pages/notice_list_page.dart';
 import '../features/notifications/notification_page.dart';
 
 // ✅ NavigatorKey는 “파일 전역에서 1번만” 생성 (중요)
@@ -352,6 +353,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/settings',
             builder: (context, state) => const SettingsPage(),
+          ),
+
+          GoRoute(
+            path: '/notices',
+            builder: (context, state) => const NoticeListPage(),
           ),
         ],
       ),
