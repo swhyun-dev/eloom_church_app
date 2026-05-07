@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../config/api_config.dart';
+import '../../core/http/app_dio.dart';
 import '../../models/account_role.dart';
 import '../../models/church_registry_person.dart';
 import '../../state/auth_provider.dart';
@@ -22,14 +22,7 @@ class _LoginPhonePageState extends ConsumerState<LoginPhonePage> {
   final phoneCtrl = TextEditingController();
   final codeCtrl = TextEditingController();
 
-  final Dio _dio = Dio(
-    BaseOptions(
-      baseUrl: ApiConfig.baseUrl,
-      connectTimeout: const Duration(seconds: 10),
-      receiveTimeout: const Duration(seconds: 15),
-      headers: {'Content-Type': 'application/json'},
-    ),
-  );
+  final Dio _dio = AppDio.instance;
 
   bool agreeForVerify = false;
   bool requested = false;

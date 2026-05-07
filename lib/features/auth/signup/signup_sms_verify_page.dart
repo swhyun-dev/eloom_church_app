@@ -3,7 +3,8 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:eloom_church_app/config/api_config.dart';
+
+import '../../../core/http/app_dio.dart';
 
 class SignupSmsVerifyPage extends StatefulWidget {
   final bool agreedApp;
@@ -25,15 +26,7 @@ class _SignupSmsVerifyPageState extends State<SignupSmsVerifyPage> {
   final phoneCtrl = TextEditingController();
   final codeCtrl = TextEditingController();
 
-  final Dio dio = Dio(
-    BaseOptions(
-      baseUrl: ApiConfig.baseUrl,
-      connectTimeout: const Duration(seconds: 10),
-      receiveTimeout: const Duration(seconds: 15),
-      sendTimeout: const Duration(seconds: 10),
-      headers: {'Content-Type': 'application/json'},
-    ),
-  );
+  final Dio dio = AppDio.instance;
 
   bool agreeForVerify = false;
   bool requested = false;
