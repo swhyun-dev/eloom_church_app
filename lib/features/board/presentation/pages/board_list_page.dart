@@ -1,73 +1,54 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../services/board_service.dart';
 
-class BoardListPage extends StatefulWidget {
+import '../../../../core/widgets/async_value_builder.dart';
+import '../../domain/models/board_category.dart';
+import '../../domain/models/board_post.dart';
+import '../providers/board_providers.dart';
+
+class BoardListPage extends ConsumerWidget {
   final String type; // news | notice
   const BoardListPage({super.key, required this.type});
 
   @override
-  State<BoardListPage> createState() => _BoardListPageState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final category = BoardCategory.fromRouteType(type);
+    final asyncList = ref.watch(boardPostsByCategoryProvider(category));
 
-class _BoardListPageState extends State<BoardListPage> {
-  late final Future<List<BoardPostData>> _future;
-
-  String get title => widget.type == 'news' ? '교회소식' : '모임공지';
-
-  String get _category =>
-      widget.type == 'news' ? 'CHURCH_NEWS' : 'MEETING_NOTICE';
-
-  @override
-  void initState() {
-    super.initState();
-    _future = BoardService().fetchByCategory(_category);
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: FutureBuilder<List<BoardPostData>>(
-        future: _future,
-        builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snap.hasError) {
-            return Center(child: Text('오류: ${snap.error}'));
-          }
-          final posts = (snap.data ?? [])
-            ..sort((a, b) {
-              if (a.isPinned != b.isPinned) return a.isPinned ? -1 : 1;
-              return b.createdAt.compareTo(a.createdAt);
-            });
-
-          if (posts.isEmpty) {
-            return const Center(child: Text('게시글이 없습니다.'));
-          }
-
-          return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-            itemCount: posts.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 10),
-            itemBuilder: (context, i) {
-              final p = posts[i];
-              return _PostCard(
-                post: p,
-                showNoticeMeta: widget.type == 'notice',
-                onTap: () => context.push('/boards/${widget.type}/${p.id}'),
-              );
-            },
-          );
-        },
+      appBar: AppBar(title: Text(category.title)),
+      body: RefreshIndicator(
+        onRefresh: () async =>
+            ref.invalidate(boardPostsByCategoryProvider(category)),
+        child: AsyncValueBuilder<List<BoardPost>>(
+          value: asyncList,
+          onRetry: () => ref.invalidate(boardPostsByCategoryProvider(category)),
+          emptyMessage: '게시글이 없습니다.',
+          builder: (raw) {
+            final posts = [...raw]..sort((a, b) {
+                if (a.isPinned != b.isPinned) return a.isPinned ? -1 : 1;
+                return b.createdAt.compareTo(a.createdAt);
+              });
+            return ListView.separated(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              itemCount: posts.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 10),
+              itemBuilder: (context, i) => _PostCard(
+                post: posts[i],
+                showNoticeMeta: type == 'notice',
+                onTap: () => context.push('/boards/$type/${posts[i].id}'),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
 }
 
 class _PostCard extends StatelessWidget {
-  final BoardPostData post;
+  final BoardPost post;
   final bool showNoticeMeta;
   final VoidCallback onTap;
 
@@ -79,7 +60,8 @@ class _PostCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final date = '${post.createdAt.year}/${_two(post.createdAt.month)}/${_two(post.createdAt.day)}';
+    final date =
+        '${post.createdAt.year}/${_two(post.createdAt.month)}/${_two(post.createdAt.day)}';
 
     return InkWell(
       borderRadius: BorderRadius.circular(16),

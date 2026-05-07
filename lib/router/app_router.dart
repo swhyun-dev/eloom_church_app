@@ -21,8 +21,8 @@ import '../features/web/web_page.dart';
 import '../features/sermon/sermon_live_page.dart';
 import '../features/sermon/sermon_board_page.dart';
 
-import '../features/boards/board_list_page.dart';
-import '../features/boards/board_detail_page.dart';
+import '../features/board/presentation/pages/board_list_page.dart';
+import '../features/board/presentation/pages/board_detail_page.dart';
 
 import '../features/calendar/edu_calendar_page.dart';
 import '../features/calendar/edu_event_detail_page.dart';
@@ -33,8 +33,8 @@ import '../features/bulletin/presentation/pages/bulletin_detail_page.dart';
 import '../features/offering/online_offering_page.dart';
 import '../features/offering/donation_receipt_page.dart';
 
-import '../features/boards/fellow_board_page.dart';
-import '../features/boards/fellow_board_detail_page.dart';
+import '../features/board/presentation/pages/fellow_board_page.dart';
+import '../features/board/presentation/pages/fellow_board_detail_page.dart';
 
 import '../features/auth/login_phone_page.dart';
 import '../features/auth/phone_verify_page.dart';

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../models/edu_event.dart';
-import '../../../services/board_service.dart';
 import '../../../services/edu_event_service.dart';
+import '../../board/domain/models/board_category.dart';
+import '../../board/presentation/providers/board_providers.dart';
 
 class HomeNoticeBox extends StatefulWidget {
   const HomeNoticeBox({super.key});
@@ -64,10 +66,10 @@ class _HomeNoticeBoxState extends State<HomeNoticeBox> {
             ),
             const SizedBox(height: 10),
 
-            if (idx == 0) const _BoardPreview(category: 'CHURCH_NEWS', type: 'news'),
-            if (idx == 1) const _BoardPreview(category: 'MEETING_NOTICE', type: 'notice'),
+            if (idx == 0) const _BoardPreview(category: BoardCategory.churchNews, type: 'news'),
+            if (idx == 1) const _BoardPreview(category: BoardCategory.meetingNotice, type: 'notice'),
             if (idx == 2) _EduPreview(),
-            if (idx == 3) const _BoardPreview(category: 'MEMBER_NEWS', type: 'fellow'),
+            if (idx == 3) const _BoardPreview(category: BoardCategory.memberNews, type: 'fellow'),
           ],
         ),
       ),
@@ -117,61 +119,42 @@ class _Tabs extends StatelessWidget {
   }
 }
 
-class _BoardPreview extends StatefulWidget {
-  final String category;
-  final String type; // news | notice | fellow
+class _BoardPreview extends ConsumerWidget {
+  final BoardCategory category;
+  final String type; // news | notice | fellow (라우트 호환)
 
   const _BoardPreview({required this.category, required this.type});
 
   @override
-  State<_BoardPreview> createState() => _BoardPreviewState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final asyncList = ref.watch(boardPostsByCategoryProvider(category));
 
-class _BoardPreviewState extends State<_BoardPreview> {
-  late final Future<List<BoardPostData>> _future;
-
-  @override
-  void initState() {
-    super.initState();
-    _future = BoardService().fetchByCategory(widget.category);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<List<BoardPostData>>(
-      future: _future,
-      builder: (context, snap) {
-        if (snap.connectionState != ConnectionState.done) {
-          return const SizedBox(
-            height: 60,
-            child: Center(child: SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))),
-          );
-        }
-        if (snap.hasError) {
-          return _PreviewList(children: const []);
-        }
-
-        final items = (snap.data ?? [])
-          ..sort((a, b) {
+    return asyncList.when(
+      loading: () => const SizedBox(
+        height: 60,
+        child: Center(child: SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))),
+      ),
+      error: (_, _) => _PreviewList(children: const []),
+      data: (raw) {
+        final items = [...raw]..sort((a, b) {
             if (a.isPinned != b.isPinned) return a.isPinned ? -1 : 1;
             return b.createdAt.compareTo(a.createdAt);
           });
-
         final top3 = items.take(3).toList();
         if (top3.isEmpty) return _PreviewList(children: const []);
 
         return _PreviewList(
           children: top3.map((p) {
-            final dday = widget.type == 'notice' ? _ddayText(p.endAt) : null;
+            final dday = type == 'notice' ? _ddayText(p.endAt) : null;
             return _RowItem(
               title: p.title,
               date: dday ?? _fmtDate(p.createdAt),
               isUrgent: dday != null,
               onTap: () {
-                if (widget.type == 'fellow') {
+                if (type == 'fellow') {
                   context.push('/boards/fellow/${p.id}');
                 } else {
-                  context.push('/boards/${widget.type}/${p.id}');
+                  context.push('/boards/$type/${p.id}');
                 }
               },
             );

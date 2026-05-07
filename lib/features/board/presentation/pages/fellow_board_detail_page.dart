@@ -1,42 +1,31 @@
 import 'package:flutter/material.dart';
-import '../../services/board_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class FellowBoardDetailPage extends StatefulWidget {
+import '../../../../core/widgets/async_value_builder.dart';
+import '../../domain/models/board_category.dart';
+import '../../domain/models/board_post.dart';
+import '../providers/board_providers.dart';
+
+class FellowBoardDetailPage extends ConsumerWidget {
   final String id;
   const FellowBoardDetailPage({super.key, required this.id});
 
-  @override
-  State<FellowBoardDetailPage> createState() => _FellowBoardDetailPageState();
-}
-
-class _FellowBoardDetailPageState extends State<FellowBoardDetailPage> {
-  late final Future<BoardPostData?> _future;
+  static const _category = BoardCategory.memberNews;
 
   @override
-  void initState() {
-    super.initState();
-    final intId = int.tryParse(widget.id) ?? -1;
-    _future = BoardService().fetchOne('MEMBER_NEWS', intId);
-  }
+  Widget build(BuildContext context, WidgetRef ref) {
+    final intId = int.tryParse(id) ?? -1;
+    final async = ref.watch(boardPostByIdProvider((category: _category, id: intId)));
 
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('교우동정')),
-      body: FutureBuilder<BoardPostData?>(
-        future: _future,
-        builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snap.hasError) {
-            return Center(child: Text('오류: ${snap.error}'));
-          }
-          final post = snap.data;
-          if (post == null) {
-            return const Center(child: Text('게시글을 찾을 수 없습니다.'));
-          }
-
+      body: AsyncValueBuilder<BoardPost?>(
+        value: async,
+        onRetry: () => ref.invalidate(boardPostsByCategoryProvider(_category)),
+        isEmpty: (p) => p == null,
+        emptyMessage: '게시글을 찾을 수 없습니다.',
+        builder: (p) {
+          final post = p!;
           return Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
             child: Column(
@@ -69,7 +58,7 @@ class _FellowBoardDetailPageState extends State<FellowBoardDetailPage> {
       ),
     );
   }
-}
 
-String _fmtDate(DateTime d) =>
-    '${d.year}/${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')}';
+  String _fmtDate(DateTime d) =>
+      '${d.year}/${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')}';
+}

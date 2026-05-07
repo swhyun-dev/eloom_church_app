@@ -1,48 +1,31 @@
 import 'package:flutter/material.dart';
-import '../../services/board_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class BoardDetailPage extends StatefulWidget {
+import '../../../../core/widgets/async_value_builder.dart';
+import '../../domain/models/board_category.dart';
+import '../../domain/models/board_post.dart';
+import '../providers/board_providers.dart';
+
+class BoardDetailPage extends ConsumerWidget {
   final String type; // news | notice
   final int id;
 
   const BoardDetailPage({super.key, required this.type, required this.id});
 
-  String get title => type == 'news' ? '교회소식' : '모임공지';
-
   @override
-  State<BoardDetailPage> createState() => _BoardDetailPageState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final category = BoardCategory.fromRouteType(type);
+    final async = ref.watch(boardPostByIdProvider((category: category, id: id)));
 
-class _BoardDetailPageState extends State<BoardDetailPage> {
-  late final Future<BoardPostData?> _future;
-
-  String get _category =>
-      widget.type == 'news' ? 'CHURCH_NEWS' : 'MEETING_NOTICE';
-
-  @override
-  void initState() {
-    super.initState();
-    _future = BoardService().fetchOne(_category, widget.id);
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
-      body: FutureBuilder<BoardPostData?>(
-        future: _future,
-        builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snap.hasError) {
-            return Center(child: Text('오류: ${snap.error}'));
-          }
-          final post = snap.data;
-          if (post == null) {
-            return const Center(child: Text('게시글을 찾을 수 없습니다.'));
-          }
-
+      appBar: AppBar(title: Text(category.title)),
+      body: AsyncValueBuilder<BoardPost?>(
+        value: async,
+        onRetry: () => ref.invalidate(boardPostsByCategoryProvider(category)),
+        isEmpty: (p) => p == null,
+        emptyMessage: '게시글을 찾을 수 없습니다.',
+        builder: (p) {
+          final post = p!;
           final date =
               '${post.createdAt.year}/${post.createdAt.month}/${post.createdAt.day}';
 
@@ -54,7 +37,7 @@ class _BoardDetailPageState extends State<BoardDetailPage> {
               const SizedBox(height: 8),
               Text(date, style: const TextStyle(color: Colors.black45)),
               const SizedBox(height: 14),
-              if (widget.type == 'notice' && post.endAt != null) ...[
+              if (type == 'notice' && post.endAt != null) ...[
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
