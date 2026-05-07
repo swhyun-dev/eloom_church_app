@@ -1,12 +1,10 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:http/http.dart' as http;
 
-import '../../config/api_config.dart';
 import '../../models/account_role.dart';
 import '../../models/church_registry_person.dart';
+import '../../services/api_service.dart';
 import '../../state/auth_provider.dart';
 
 class LoginIdPage extends ConsumerStatefulWidget {
@@ -46,18 +44,16 @@ class _LoginIdPageState extends ConsumerState<LoginIdPage> {
     });
 
     try {
-      final res = await http.post(
-        Uri.parse('${ApiConfig.baseUrl}/auth/login'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'userId': userId, 'password': password}),
-      );
-
-      final decoded = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
-
-      if (res.statusCode < 200 || res.statusCode >= 300) {
+      final Map<String, dynamic> decoded;
+      try {
+        decoded = await ApiService().post('/auth/login', {
+          'userId': userId,
+          'password': password,
+        });
+      } catch (e) {
         setState(() {
           busy = false;
-          error = (decoded['message'] as String?) ?? '로그인에 실패했습니다.';
+          error = e.toString().replaceFirst('Exception: ', '');
         });
         return;
       }

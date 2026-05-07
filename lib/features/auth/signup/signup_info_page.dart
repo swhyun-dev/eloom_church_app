@@ -1,12 +1,10 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:http/http.dart' as http;
 
-import '../../../config/api_config.dart';
 import '../../../models/account_role.dart';
 import '../../../models/church_registry_person.dart';
+import '../../../services/api_service.dart';
 import '../../../state/auth_provider.dart';
 
 class SignupInfoPage extends ConsumerStatefulWidget {
@@ -111,24 +109,19 @@ class _SignupInfoPageState extends ConsumerState<SignupInfoPage> {
     });
 
     try {
-      final res = await http.post(
-        Uri.parse('${ApiConfig.baseUrl}/auth/sms/register'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
+      final Map<String, dynamic> decoded;
+      try {
+        decoded = await ApiService().post('/auth/sms/register', {
           'verifiedPhone': widget.verifiedPhone,
           'name': name,
           'userId': userId,
           'password': pw,
           if (addrCtrl.text.trim().isNotEmpty) 'address': addrCtrl.text.trim(),
-        }),
-      );
-
-      final decoded = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
-
-      if (res.statusCode < 200 || res.statusCode >= 300) {
+        });
+      } catch (e) {
         setState(() {
           busy = false;
-          error = (decoded['message'] as String?) ?? '가입에 실패했습니다.';
+          error = e.toString().replaceFirst('Exception: ', '');
         });
         return;
       }

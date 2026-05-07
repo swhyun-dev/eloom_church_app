@@ -16,9 +16,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:http/http.dart' as http;
 
-import '../../config/api_config.dart';
 import '../../services/cafe_service.dart';
 import '../../state/auth_provider.dart';
 
@@ -290,48 +288,8 @@ class CafeOrder {
 /// =======================
 /// Providers (Menu: API)
 /// =======================
-final cafeMenuPayloadProvider = FutureProvider<CafeMenuPayload>((ref) async {
-  final uri = Uri.parse('${ApiConfig.baseUrl}/api/v1/cafe/menu');
-  final res = await http.get(uri, headers: {'Accept': 'application/json'});
-  if (res.statusCode < 200 || res.statusCode >= 300) {
-    throw Exception('메뉴 조회 실패 (${res.statusCode})');
-  }
-
-  final decoded = jsonDecode(utf8.decode(res.bodyBytes));
-  if (decoded is! Map<String, dynamic>) throw Exception('메뉴 응답 형식이 올바르지 않습니다.');
-  if (decoded['ok'] != true) throw Exception((decoded['message'] ?? '메뉴 조회 실패').toString());
-
-  final categories = (decoded['categories'] as List?)?.map((e) => e.toString()).toList() ?? <String>[];
-  final data = <String, List<CafeMenuItem>>{};
-
-  final raw = decoded['data'];
-  if (raw is Map) {
-    raw.forEach((k, v) {
-      final cat = (k ?? '기타').toString();
-      final list = <CafeMenuItem>[];
-      if (v is List) {
-        for (final it in v) {
-          if (it is Map) {
-            final j = Map<String, dynamic>.from(it);
-            j.putIfAbsent('category', () => cat);
-            list.add(CafeMenuItem.fromJson(j));
-          }
-        }
-      }
-      data[cat] = list;
-    });
-  }
-
-  // categories 순서 유지 + 각 카테고리 내 sortOrder 정렬
-  for (final c in data.keys) {
-    data[c]!.sort((a, b) {
-      final s = a.sortOrder.compareTo(b.sortOrder);
-      if (s != 0) return s;
-      return a.id.compareTo(b.id);
-    });
-  }
-
-  return CafeMenuPayload(categories: categories, data: data);
+final cafeMenuPayloadProvider = FutureProvider<CafeMenuPayload>((ref) {
+  return CafeService().fetchMenu();
 });
 
 class CafeCartNotifier extends StateNotifier<List<CafeCartLine>> {
@@ -914,7 +872,6 @@ class _CafeOptionPageState extends ConsumerState<CafeOptionPage> {
 
     try {
       final res = await CafeService().createOrder(
-        accessToken: token,
         items: [{'menuId': item.id, 'qty': _qty, if (optionsJson != null) 'options': optionsJson}],
       );
 
@@ -1561,7 +1518,6 @@ class _CafeCartTab extends ConsumerWidget {
                     }).toList();
 
                     final res = await CafeService().createOrder(
-                      accessToken: token,
                       items: items,
                     );
 
