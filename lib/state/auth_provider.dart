@@ -255,7 +255,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final token = state.token;
     if (token == null || fcmToken.isEmpty) return;
     try {
-      await ApiService(token: token).post('/api/devices/token', {
+      await ApiService(token: token).post('/api/v1/devices/token', {
         'token': fcmToken,
         'platform': 'flutter',
       });

@@ -71,7 +71,7 @@ class BibleApiComProvider {
     required String book,
     required int chapter,
   }) async {
-    final uri = _buildUri('/api/bible/chapters/$translationId/$book/$chapter');
+    final uri = _buildUri('/api/v1/bible/chapters/$translationId/$book/$chapter');
     debugPrint('[BibleApiComProvider] GET $uri');
 
     try {
@@ -95,7 +95,7 @@ class BibleApiComProvider {
   }
 
   Future<List<Map<String, dynamic>>> fetchTranslations() async {
-    final uri = _buildUri('/api/bible/translations');
+    final uri = _buildUri('/api/v1/bible/translations');
     debugPrint('[BibleApiComProvider] GET $uri');
 
     try {

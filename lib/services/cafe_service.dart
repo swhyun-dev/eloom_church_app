@@ -7,7 +7,7 @@ import '../features/cafe/cafe_page.dart'; // 아래에서 추가할 모델들 �
 class CafeService {
   CafeService();
 
-  /// GET /api/cafe/menu
+  /// GET /api/v1/cafe/menu
   /// 응답:
   /// {
   ///   ok: true,
@@ -15,7 +15,7 @@ class CafeService {
   ///   data: { "커피":[{...}], "논커피":[{...}] }
   /// }
   Future<CafeMenuPayload> fetchMenu({bool all = false}) async {
-    final uri = Uri.parse('${ApiConfig.baseUrl}/api/cafe/menu')
+    final uri = Uri.parse('${ApiConfig.baseUrl}/api/v1/cafe/menu')
         .replace(queryParameters: all ? {'all': '1'} : null);
 
     final res = await http.get(uri, headers: {
@@ -75,7 +75,7 @@ class CafeService {
     );
   }
 
-  /// POST /api/cafe/orders (requireAuth)
+  /// POST /api/v1/cafe/orders (requireAuth)
   /// body:
   /// {
   ///  items: [{menuId, qty, options?}],
@@ -86,7 +86,7 @@ class CafeService {
     required List<Map<String, dynamic>> items,
     String? memo,
   }) async {
-    final uri = Uri.parse('${ApiConfig.baseUrl}/api/cafe/orders');
+    final uri = Uri.parse('${ApiConfig.baseUrl}/api/v1/cafe/orders');
 
     final res = await http.post(
       uri,

@@ -291,7 +291,7 @@ class CafeOrder {
 /// Providers (Menu: API)
 /// =======================
 final cafeMenuPayloadProvider = FutureProvider<CafeMenuPayload>((ref) async {
-  final uri = Uri.parse('${ApiConfig.baseUrl}/api/cafe/menu');
+  final uri = Uri.parse('${ApiConfig.baseUrl}/api/v1/cafe/menu');
   final res = await http.get(uri, headers: {'Accept': 'application/json'});
   if (res.statusCode < 200 || res.statusCode >= 300) {
     throw Exception('메뉴 조회 실패 (${res.statusCode})');
