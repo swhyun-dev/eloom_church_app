@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../services/zone_post_service.dart';
 import '../../state/auth_provider.dart';
 import '../prayer/domain/models/prayer.dart';
 import '../prayer/presentation/providers/prayer_providers.dart';
+import '../zone_post/domain/models/zone_post.dart';
+import '../zone_post/presentation/providers/zone_post_providers.dart';
 
 class CellPage extends ConsumerWidget {
   final int initialTab;
@@ -81,33 +82,19 @@ class _CellBoardTab extends ConsumerStatefulWidget {
 }
 
 class _CellBoardTabState extends ConsumerState<_CellBoardTab> {
-  late Future<List<ZonePostData>> _future;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  void _load() {
-    _future = ZonePostService().fetchAll();
-  }
-
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
 
     if (auth.registry == null) return const _UnassignedCenter();
 
-    return FutureBuilder<List<ZonePostData>>(
-      future: _future,
-      builder: (context, snap) {
-        if (snap.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator());
-        }
+    final asyncList = ref.watch(zonePostListProvider);
 
-        final notices = (snap.data ?? [])
-          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return asyncList.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('오류: $e')),
+      data: (raw) {
+        final notices = [...raw]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 22),
@@ -161,18 +148,6 @@ class CellNoticeListPage extends ConsumerStatefulWidget {
 }
 
 class _CellNoticeListPageState extends ConsumerState<CellNoticeListPage> {
-  late Future<List<ZonePostData>> _future;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  void _load() {
-    _future = ZonePostService().fetchAll();
-  }
-
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
@@ -185,21 +160,15 @@ class _CellNoticeListPageState extends ConsumerState<CellNoticeListPage> {
     }
 
     final isLeader = auth.isDistrictLeader;
+    final asyncList = ref.watch(zonePostListProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('구역공지'), centerTitle: true),
-      body: FutureBuilder<List<ZonePostData>>(
-        future: _future,
-        builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snap.hasError) {
-            return Center(child: Text('오류: ${snap.error}'));
-          }
-
-          final notices = (snap.data ?? [])
-            ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      body: asyncList.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('오류: $e')),
+        data: (raw) {
+          final notices = [...raw]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
           return Column(
             children: [
@@ -231,7 +200,7 @@ class _CellNoticeListPageState extends ConsumerState<CellNoticeListPage> {
                       onPressed: () async {
                         await context.push('/cell/notices/write');
                         if (!mounted) return;
-                        setState(_load);
+                        ref.invalidate(zonePostListProvider);
                       },
                       child: const Text('글쓰기'),
                     ),
@@ -257,16 +226,7 @@ class CellNoticeDetailPage extends ConsumerStatefulWidget {
 }
 
 class _CellNoticeDetailPageState extends ConsumerState<CellNoticeDetailPage> {
-  late final Future<ZonePostData?> _future;
-
-  @override
-  void initState() {
-    super.initState();
-    final id = int.tryParse(widget.noticeId) ?? -1;
-    _future = ZonePostService().fetchById(id);
-  }
-
-  Future<void> _confirmEdit(BuildContext context, ZonePostData n) async {
+  Future<void> _confirmEdit(BuildContext context, ZonePost n) async {
     final titleCtrl = TextEditingController(text: n.title);
     final contentCtrl = TextEditingController(text: n.content);
     final saved = await showDialog<bool>(
@@ -300,7 +260,10 @@ class _CellNoticeDetailPageState extends ConsumerState<CellNoticeDetailPage> {
     final router = GoRouter.of(context);
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await ZonePostService().update(n.id, title: titleCtrl.text.trim(), content: contentCtrl.text.trim());
+      await ref
+          .read(zonePostRepositoryProvider)
+          .update(n.id, title: titleCtrl.text.trim(), content: contentCtrl.text.trim());
+      ref.invalidate(zonePostListProvider);
       if (!context.mounted) return;
       router.pop();
       messenger.showSnackBar(const SnackBar(content: Text('공지가 수정되었습니다.')));
@@ -332,7 +295,8 @@ class _CellNoticeDetailPageState extends ConsumerState<CellNoticeDetailPage> {
     final messenger = ScaffoldMessenger.of(context);
 
     try {
-      await ZonePostService().delete(id);
+      await ref.read(zonePostRepositoryProvider).delete(id);
+      ref.invalidate(zonePostListProvider);
       if (!context.mounted) return;
       router.pop();
       messenger.showSnackBar(const SnackBar(content: Text('공지가 삭제되었습니다.')));
@@ -354,19 +318,15 @@ class _CellNoticeDetailPageState extends ConsumerState<CellNoticeDetailPage> {
     }
 
     final isLeader = auth.isDistrictLeader;
+    final id = int.tryParse(widget.noticeId) ?? -1;
+    final async = ref.watch(zonePostByIdProvider(id));
 
     return Scaffold(
       appBar: AppBar(title: const Text('구역공지'), centerTitle: true),
-      body: FutureBuilder<ZonePostData?>(
-        future: _future,
-        builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snap.hasError) {
-            return Center(child: Text('오류: ${snap.error}'));
-          }
-          final n = snap.data;
+      body: async.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('오류: $e')),
+        data: (n) {
           if (n == null) {
             return const Center(child: Text('게시글을 찾을 수 없습니다.'));
           }
@@ -451,7 +411,8 @@ class _CellNoticeWritePageState extends ConsumerState<CellNoticeWritePage> {
 
     setState(() => _busy = true);
     try {
-      await ZonePostService().create(title: title, content: content);
+      await ref.read(zonePostRepositoryProvider).create(title: title, content: content);
+      ref.invalidate(zonePostListProvider);
       if (!mounted) return;
       context.pop();
       ScaffoldMessenger.of(context).showSnackBar(
