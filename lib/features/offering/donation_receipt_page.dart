@@ -1,14 +1,19 @@
 // donation_receipt_page.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class DonationReceiptPage extends StatefulWidget {
+import 'domain/donation_receipt_repository.dart';
+import 'domain/models/donation_receipt_id_kind.dart';
+import 'presentation/providers/donation_receipt_providers.dart';
+
+class DonationReceiptPage extends ConsumerStatefulWidget {
   const DonationReceiptPage({super.key});
 
   @override
-  State<DonationReceiptPage> createState() => _DonationReceiptPageState();
+  ConsumerState<DonationReceiptPage> createState() => _DonationReceiptPageState();
 }
 
-class _DonationReceiptPageState extends State<DonationReceiptPage> {
+class _DonationReceiptPageState extends ConsumerState<DonationReceiptPage> {
   final _formKey = GlobalKey<FormState>();
 
   // 동의 체크
@@ -28,10 +33,15 @@ class _DonationReceiptPageState extends State<DonationReceiptPage> {
   final password = TextEditingController();
   final memo = TextEditingController();
 
+  // 번호 종류 (주민/사업자)
+  DonationReceiptIdKind idKind = DonationReceiptIdKind.resident;
+
   // 기간 (드롭다운)
   int year = 2025;
   int startMonth = 1, startDay = 1;
   int endMonth = 12, endDay = 31;
+
+  bool _submitting = false;
 
   @override
   void dispose() {
@@ -96,9 +106,34 @@ class _DonationReceiptPageState extends State<DonationReceiptPage> {
                 label: '*기부자 성명',
                 validator: _required,
               ),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  children: [
+                    const Text('*번호 종류',
+                        style: TextStyle(fontWeight: FontWeight.w700)),
+                    const SizedBox(width: 16),
+                    ChoiceChip(
+                      label: const Text('주민번호'),
+                      selected: idKind == DonationReceiptIdKind.resident,
+                      onSelected: (_) => setState(
+                          () => idKind = DonationReceiptIdKind.resident),
+                    ),
+                    const SizedBox(width: 8),
+                    ChoiceChip(
+                      label: const Text('사업자번호'),
+                      selected: idKind == DonationReceiptIdKind.business,
+                      onSelected: (_) => setState(
+                          () => idKind = DonationReceiptIdKind.business),
+                    ),
+                  ],
+                ),
+              ),
               _TextField(
                 controller: idNumber,
-                label: '*주민등록번호 / 사업자등록번호',
+                label: idKind == DonationReceiptIdKind.resident
+                    ? '*주민등록번호'
+                    : '*사업자등록번호',
                 hint: '숫자만 입력 또는 형식대로 입력',
                 validator: (v) {
                   if (!_required(v).isNullOrEmpty) return _required(v);
@@ -151,8 +186,15 @@ class _DonationReceiptPageState extends State<DonationReceiptPage> {
 
               const SizedBox(height: 18),
               FilledButton(
-                onPressed: _submit,
-                child: const Text('신청하기'),
+                onPressed: _submitting ? null : _submit,
+                child: _submitting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text('신청하기'),
               ),
               const SizedBox(height: 10),
               const Text(
@@ -168,42 +210,71 @@ class _DonationReceiptPageState extends State<DonationReceiptPage> {
 
   String? _required(String? v) => (v == null || v.trim().isEmpty) ? '필수 항목입니다.' : null;
 
-  void _submit() {
-    // 동의 체크 1차 가드
-    if (!agreePrivacy) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('개인정보 수집 및 이용 동의가 필요합니다.')));
+  Future<void> _submit() async {
+    if (!agreePrivacy || !agreeUniqueId) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('개인정보 및 고유식별정보 동의가 필요합니다.')),
+      );
       return;
     }
-
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    final payload = {
-      'applicantName': applicantName.text.trim(),
-      'donorName': donorName.text.trim(),
-      'idNumber': idNumber.text.trim(),
-      'address': address.text.trim(),
-      'contact': contact.text.trim(),
-      'phone': phone.text.trim(),
-      'email': email.text.trim(),
-      'affiliation': affiliation.text.trim(),
-      'period': {
-        'year': year,
-        'start': '$year-${startMonth.toString().padLeft(2, '0')}-${startDay.toString().padLeft(2, '0')}',
-        'end': '$year-${endMonth.toString().padLeft(2, '0')}-${endDay.toString().padLeft(2, '0')}',
-      },
-      'dependents': dependents.text.trim(),
-      'password': password.text,
-      'memo': memo.text.trim(),
-      'agreePrivacy': agreePrivacy,
-      'agreeUniqueId': agreeUniqueId,
-    };
+    final submission = DonationReceiptSubmission(
+      applicantName: applicantName.text.trim(),
+      applicantPhone: phone.text.trim(),
+      donorName: donorName.text.trim(),
+      idKind: idKind,
+      idNumber: idNumber.text.trim(),
+      donorAddress:
+          address.text.trim().isEmpty ? null : address.text.trim(),
+      donorContact:
+          contact.text.trim().isEmpty ? null : contact.text.trim(),
+      donorEmail: email.text.trim().isEmpty ? null : email.text.trim(),
+      affiliation:
+          affiliation.text.trim().isEmpty ? null : affiliation.text.trim(),
+      periodYear: year,
+      periodStart: DateTime(year, startMonth, startDay),
+      periodEnd: DateTime(year, endMonth, endDay, 23, 59, 59),
+      dependents:
+          dependents.text.trim().isEmpty ? null : dependents.text.trim(),
+      memo: memo.text.trim().isEmpty ? null : memo.text.trim(),
+      password: password.text.isEmpty ? null : password.text,
+      agreedPrivacy: agreePrivacy,
+      agreedUniqueId: agreeUniqueId,
+    );
 
-    // TODO: 여기서 API 호출/Firestore 저장 등으로 연결
-    // await api.applyDonationReceipt(payload);
-
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('신청이 접수되었습니다.')));
-    // Navigator.pop(context); // 필요하면 완료 후 뒤로
-    debugPrint(payload.toString());
+    setState(() => _submitting = true);
+    try {
+      final submit = ref.read(submitDonationReceiptProvider);
+      await submit(submission);
+      ref.invalidate(myDonationReceiptsProvider);
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('신청 완료'),
+          content: const Text(
+            '기부금 영수증 신청이 접수되었습니다.\n발급이 완료되면 알림으로 안내드립니다.',
+            style: TextStyle(height: 1.5),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('확인'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted) return;
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('신청에 실패했습니다: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
   }
 }
 
