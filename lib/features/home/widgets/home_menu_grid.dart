@@ -20,10 +20,12 @@ class HomeMenuGrid extends ConsumerWidget {
       _MenuItem('교회주보', Icons.article_outlined, 'Bulletin', '/bulletin'),
       _MenuItem('성경읽기', Icons.menu_book_outlined, 'Holy Bible', '/bible'),
       _MenuItem('기도제목', Icons.volunteer_activism_outlined, 'Prayer', '/prayer?tab=0'),
-      _MenuItem('온라인헌금', Icons.favorite_border, 'Offering', '/offering'), // ✅ 추가
+      _MenuItem('온라인헌금', Icons.favorite_border, 'Offering', '/offering'),
       _MenuItem('교회카페', Icons.local_cafe_outlined, 'Cafeteria', '/cafe'),
       _MenuItem('구역모임', Icons.groups_outlined, 'Cell Group', '/cell'),
       _MenuItem('사역신청', Icons.assignment_outlined, 'Ministry', '/ministry'),
+      _MenuItem('교회일정', Icons.calendar_month_outlined, 'Church Events', '/calendar/church'),
+      _MenuItem('오시는길', Icons.location_on_outlined, 'Location', '/location'),
       _MenuItem('홈페이지', Icons.language_outlined, 'Homepage', _homepageKey),
     ];
 
