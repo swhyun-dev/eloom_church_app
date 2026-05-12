@@ -20,6 +20,7 @@ import '../features/web/web_page.dart';
 
 import '../features/sermon/sermon_live_page.dart';
 import '../features/sermon/sermon_board_page.dart';
+import '../features/sermon/presentation/pages/sermon_list_page.dart';
 
 import '../features/board/presentation/pages/board_list_page.dart';
 import '../features/board/presentation/pages/board_detail_page.dart';
@@ -265,6 +266,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
           GoRoute(path: '/sermon/live', builder: (context, state) => const SermonLivePage()),
           GoRoute(path: '/sermon/board', builder: (context, state) => const SermonBoardPage()),
+          GoRoute(path: '/sermon/list', builder: (context, state) => const SermonListPage()),
           GoRoute(
             path: '/prayer',
             builder: (context, state) {
