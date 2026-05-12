@@ -32,6 +32,8 @@ class _ChurchEventCalendarPageState
       body: AsyncValueBuilder<List<ChurchEvent>>(
         value: async,
         onRetry: () => ref.invalidate(churchEventsByMonthProvider(key)),
+        // 빈 리스트여도 캘린더 자체는 표시되어야 함 → empty fallback 비활성화
+        isEmpty: (_) => false,
         builder: (events) {
           List<ChurchEvent> eventsOf(DateTime day) =>
               events.where((e) => e.occursOn(day)).toList()

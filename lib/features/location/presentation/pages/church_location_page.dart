@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -86,22 +87,26 @@ class _LocationBody extends StatefulWidget {
 class _LocationBodyState extends State<_LocationBody> {
   WebViewController? _mapController;
 
-  @override
-  void initState() {
-    super.initState();
+  String get _mapEmbedUrl {
     final lat = widget.info.mapLatitude;
     final lng = widget.info.mapLongitude;
     final query = (lat != null && lng != null)
         ? '$lat,$lng'
         : widget.info.fullAddress;
     // Google Maps embed — API 키 불필요. 한국 지명 정상 표시.
-    final url =
-        'https://www.google.com/maps?q=${Uri.encodeComponent(query)}&z=16&output=embed';
+    return 'https://www.google.com/maps?q=${Uri.encodeComponent(query)}&z=16&output=embed';
+  }
 
-    _mapController = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(const Color(0x00000000))
-      ..loadRequest(Uri.parse(url));
+  @override
+  void initState() {
+    super.initState();
+    // Web에서는 webview_flutter 미지원 → mobile에서만 controller 초기화
+    if (!kIsWeb) {
+      _mapController = WebViewController()
+        ..setJavaScriptMode(JavaScriptMode.unrestricted)
+        ..setBackgroundColor(const Color(0x00000000))
+        ..loadRequest(Uri.parse(_mapEmbedUrl));
+    }
   }
 
   @override
@@ -111,16 +116,20 @@ class _LocationBodyState extends State<_LocationBody> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
       children: [
-        // ✅ 지도
+        // ✅ 지도 (모바일은 WebView, web은 외부 링크 안내 카드)
         Card(
           clipBehavior: Clip.antiAlias,
           child: Column(
             children: [
               SizedBox(
                 height: 260,
-                child: _mapController == null
-                    ? const Center(child: CircularProgressIndicator())
-                    : WebViewWidget(controller: _mapController!),
+                child: kIsWeb
+                    ? _WebMapPlaceholder(
+                        onOpen: () => widget.onOpenMap(_mapEmbedUrl),
+                      )
+                    : (_mapController == null
+                        ? const Center(child: CircularProgressIndicator())
+                        : WebViewWidget(controller: _mapController!)),
               ),
               // 외부 지도 앱 빠른 진입
               Padding(
@@ -248,6 +257,36 @@ class _SectionTitle extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
       child: Text(text,
           style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15)),
+    );
+  }
+}
+
+class _WebMapPlaceholder extends StatelessWidget {
+  final VoidCallback onOpen;
+  const _WebMapPlaceholder({required this.onOpen});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xFFF1F5F9),
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.map_outlined, size: 56, color: Color(0xFF94A3B8)),
+          const SizedBox(height: 10),
+          const Text(
+            '웹 브라우저에서는 외부 지도에서 열어보세요.',
+            style: TextStyle(color: Color(0xFF475569), fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 14),
+          ElevatedButton.icon(
+            onPressed: onOpen,
+            icon: const Icon(Icons.open_in_new, size: 18),
+            label: const Text('지도 열기'),
+          ),
+        ],
+      ),
     );
   }
 }
