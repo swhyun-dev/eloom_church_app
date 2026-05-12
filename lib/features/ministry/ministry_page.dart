@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'models/ministry_models.dart';
-import 'state/ministry_provider.dart';
+import '../../core/widgets/async_value_builder.dart';
+import 'domain/models/ministry_application.dart';
+import 'domain/models/ministry_dept.dart';
+import 'domain/models/ministry_status.dart';
+import 'presentation/providers/ministry_providers.dart';
 
 class MinistryPage extends ConsumerStatefulWidget {
   final int initialTab; // 0=신청, 1=내역
@@ -17,12 +20,11 @@ class _MinistryPageState extends ConsumerState<MinistryPage>
     with SingleTickerProviderStateMixin {
   late final TabController _tab;
 
-  // ✅ 디자인 컬러(앱 전체 톤에 맞춰 동일 계열 사용)
   static const Color _primary = Color(0xFF0B4FA8);
   static const Color _line = Color(0xFFE5E7EB);
   static const Color _muted = Color(0xFF6B7280);
 
-  // ✅ 예시 역할(부서별 체크박스)
+  // 부서별 세부 역할 (Flutter UI 의도 유지 — 백엔드로는 motivation으로 전송)
   final Map<MinistryDept, List<String>> roles = const {
     MinistryDept.worship: ['예배 안내', '새가족 안내'],
     MinistryDept.praise: [
@@ -64,7 +66,7 @@ class _MinistryPageState extends ConsumerState<MinistryPage>
 
   @override
   Widget build(BuildContext context) {
-    final list = ref.watch(ministryProvider);
+    final asyncList = ref.watch(myMinistryApplicationsProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -76,7 +78,7 @@ class _MinistryPageState extends ConsumerState<MinistryPage>
             if (context.canPop()) {
               context.pop();
             } else {
-              context.go('/'); // 홈 라우트가 다르면 변경
+              context.go('/');
             }
           },
         ),
@@ -106,7 +108,13 @@ class _MinistryPageState extends ConsumerState<MinistryPage>
             }),
             onSubmit: () => _openConfirm(context),
           ),
-          _HistoryTab(items: list),
+          AsyncValueBuilder<List<MinistryApplication>>(
+            value: asyncList,
+            onRetry: () => ref.invalidate(myMinistryApplicationsProvider),
+            isEmpty: (l) => l.isEmpty,
+            emptyMessage: '신청 내역이 없습니다.',
+            builder: (items) => _HistoryTab(items: items),
+          ),
         ],
       ),
     );
@@ -137,7 +145,6 @@ class _MinistryPageState extends ConsumerState<MinistryPage>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // ✅ 상단 X
               Row(
                 children: [
                   const Spacer(),
@@ -147,16 +154,12 @@ class _MinistryPageState extends ConsumerState<MinistryPage>
                   ),
                 ],
               ),
-
               const SizedBox(height: 2),
-
               const Text(
                 '사역을 신청하시겠습니까?',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
               ),
-
               const SizedBox(height: 12),
-
               const Text(
                 '신청내역',
                 style: TextStyle(
@@ -165,17 +168,12 @@ class _MinistryPageState extends ConsumerState<MinistryPage>
                   fontWeight: FontWeight.w700,
                 ),
               ),
-
               const SizedBox(height: 8),
-
               Text(
                 '$deptLabel - $roleLabel',
                 style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
               ),
-
               const SizedBox(height: 18),
-
-              // ✅ 버튼 2개 (이미지처럼 파란 신청 + 회색 취소)
               SizedBox(
                 width: double.infinity,
                 height: 46,
@@ -183,27 +181,34 @@ class _MinistryPageState extends ConsumerState<MinistryPage>
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _primary,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    textStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15.5),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    textStyle: const TextStyle(
+                        fontWeight: FontWeight.w900, fontSize: 15.5),
                   ),
-                  onPressed: () {
-                    ref.read(ministryProvider.notifier).submit(
-                      dept: selectedDept!,
-                      role: selectedRole!,
-                    );
-
-                    // ✅ 바텀시트만 닫기 (중요: sheetCtx)
+                  onPressed: () async {
+                    final submit = ref.read(submitMinistryProvider);
                     sheetCtx.pop();
-
-                    // ✅ 완료 화면(전체 화면 스타일)
-                    _openComplete(pageCtx, deptLabel: deptLabel, roleLabel: roleLabel);
+                    try {
+                      await submit(
+                        department: selectedDept!,
+                        motivation: roleLabel,
+                      );
+                      ref.invalidate(myMinistryApplicationsProvider);
+                      if (!mounted) return;
+                      _openComplete(
+                          deptLabel: deptLabel, roleLabel: roleLabel);
+                    } catch (e) {
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('신청에 실패했습니다: $e')),
+                      );
+                    }
                   },
                   child: const Text('신청하기'),
                 ),
               ),
-
               const SizedBox(height: 10),
-
               SizedBox(
                 width: double.infinity,
                 height: 46,
@@ -211,14 +216,15 @@ class _MinistryPageState extends ConsumerState<MinistryPage>
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.black87,
                     side: const BorderSide(color: _line),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15.5),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    textStyle: const TextStyle(
+                        fontWeight: FontWeight.w800, fontSize: 15.5),
                   ),
                   onPressed: () => sheetCtx.pop(),
                   child: const Text('취소하기'),
                 ),
               ),
-
               const SizedBox(height: 6),
             ],
           ),
@@ -227,18 +233,15 @@ class _MinistryPageState extends ConsumerState<MinistryPage>
     );
   }
 
-  void _openComplete(
-      BuildContext pageCtx, {
-        required String deptLabel,
-        required String roleLabel,
-      }) {
+  void _openComplete({
+    required String deptLabel,
+    required String roleLabel,
+  }) {
     final now = DateTime.now();
-    final dateStr =
-        '${now.year}년 ${now.month}월 ${now.day}일';
+    final dateStr = '${now.year}년 ${now.month}월 ${now.day}일';
 
-    // ✅ 이미지처럼 "완료 페이지" = fullscreen dialog 스타일로 구현
     showGeneralDialog(
-      context: pageCtx,
+      context: context,
       barrierDismissible: true,
       barrierLabel: 'ministry_complete',
       barrierColor: Colors.black.withValues(alpha: 0.45),
@@ -249,26 +252,22 @@ class _MinistryPageState extends ConsumerState<MinistryPage>
           child: SafeArea(
             child: Column(
               children: [
-                // 상단 X (우측)
                 Align(
                   alignment: Alignment.centerRight,
                   child: IconButton(
                     icon: const Icon(Icons.close, color: Colors.black54),
                     onPressed: () {
                       ctx.pop();
-                      _tab.animateTo(1); // ✅ 닫으면 내역 탭
+                      _tab.animateTo(1);
                     },
                   ),
                 ),
-
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(22, 10, 22, 10),
                     child: Column(
                       children: [
                         const SizedBox(height: 12),
-
-                        // 체크 아이콘
                         Container(
                           width: 54,
                           height: 54,
@@ -276,19 +275,17 @@ class _MinistryPageState extends ConsumerState<MinistryPage>
                             color: _primary,
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.check, color: Colors.white, size: 30),
+                          child: const Icon(Icons.check,
+                              color: Colors.white, size: 30),
                         ),
-
                         const SizedBox(height: 18),
-
                         const Text(
                           '사역 신청이 완료되었습니다!',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.w900),
                           textAlign: TextAlign.center,
                         ),
-
                         const SizedBox(height: 18),
-
                         const Text(
                           '신청내역',
                           style: TextStyle(
@@ -297,16 +294,13 @@ class _MinistryPageState extends ConsumerState<MinistryPage>
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-
                         const SizedBox(height: 10),
-
                         Text(
                           '$deptLabel - $roleLabel',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+                          style: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w900),
                         ),
-
                         const SizedBox(height: 14),
-
                         Text(
                           '신청일 : $dateStr',
                           style: const TextStyle(
@@ -315,10 +309,7 @@ class _MinistryPageState extends ConsumerState<MinistryPage>
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-
                         const SizedBox(height: 18),
-
-                        // 안내 박스 (이미지처럼)
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
@@ -330,12 +321,10 @@ class _MinistryPageState extends ConsumerState<MinistryPage>
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               _InfoBullet(
-                                text: '담당자 확인 후, 안내 연락을 드리겠습니다.',
-                              ),
+                                  text: '담당자 확인 후, 안내 연락을 드리겠습니다.'),
                               SizedBox(height: 6),
                               _InfoBullet(
-                                text: '부서 상황에 따라 신청한 사역이 불가할 수 있습니다.',
-                              ),
+                                  text: '부서 상황에 따라 신청한 사역이 불가할 수 있습니다.'),
                             ],
                           ),
                         ),
@@ -343,8 +332,6 @@ class _MinistryPageState extends ConsumerState<MinistryPage>
                     ),
                   ),
                 ),
-
-                // 하단 닫기 버튼
                 Padding(
                   padding: const EdgeInsets.fromLTRB(22, 0, 22, 18),
                   child: SizedBox(
@@ -353,8 +340,10 @@ class _MinistryPageState extends ConsumerState<MinistryPage>
                     child: OutlinedButton(
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: _line),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                        textStyle: const TextStyle(
+                            fontWeight: FontWeight.w800, fontSize: 16),
                       ),
                       onPressed: () {
                         ctx.pop();
@@ -386,7 +375,10 @@ class _InfoBullet extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('• ', style: TextStyle(fontWeight: FontWeight.w900, color: _MinistryPageState._primary)),
+        const Text('• ',
+            style: TextStyle(
+                fontWeight: FontWeight.w900,
+                color: _MinistryPageState._primary)),
         Expanded(
           child: Text(
             text,
@@ -429,12 +421,12 @@ class _ApplyTab extends StatelessWidget {
           _DeptCard(
             title: entry.key.label,
             items: entry.value,
-            selected: (role) => selectedDept == entry.key && selectedRole == role,
+            selected: (role) =>
+                selectedDept == entry.key && selectedRole == role,
             onTap: (role) => onSelect(entry.key, role),
           ),
           const SizedBox(height: 12),
         ],
-
         const SizedBox(height: 2),
         const Text(
           '• 한번 신청에 두개 이상 선택은 불가합니다.\n• 부서 상황에 따라 신청한 사역이 불가할 수 있습니다.',
@@ -445,9 +437,7 @@ class _ApplyTab extends StatelessWidget {
             height: 1.35,
           ),
         ),
-
         const SizedBox(height: 12),
-
         SizedBox(
           width: double.infinity,
           height: 50,
@@ -455,8 +445,10 @@ class _ApplyTab extends StatelessWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: _primary,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              textStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+              shape:
+                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              textStyle:
+                  const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
             ),
             onPressed: onSubmit,
             child: const Text('신청하기'),
@@ -493,7 +485,9 @@ class _DeptCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14.5)),
+          Text(title,
+              style:
+                  const TextStyle(fontWeight: FontWeight.w900, fontSize: 14.5)),
           const SizedBox(height: 8),
           for (final role in items) ...[
             InkWell(
@@ -536,17 +530,11 @@ class _HistoryTab extends ConsumerWidget {
   static const Color _line = Color(0xFFE5E7EB);
   static const Color _primary = Color(0xFF0B4FA8);
 
-  final List<MinistryApplyItem> items;
+  final List<MinistryApplication> items;
   const _HistoryTab({required this.items});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (items.isEmpty) {
-      return const Center(
-        child: Text('신청 내역이 없습니다.', style: TextStyle(fontWeight: FontWeight.w800)),
-      );
-    }
-
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
       itemCount: items.length,
@@ -558,43 +546,62 @@ class _HistoryTab extends ConsumerWidget {
 
         final btn = switch (x.status) {
           MinistryStatus.pending => OutlinedButton(
-            onPressed: () => ref.read(ministryProvider.notifier).cancel(x.id),
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: _line),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5),
+              onPressed: () async {
+                final cancel = ref.read(cancelMinistryProvider);
+                try {
+                  await cancel(x.id);
+                  ref.invalidate(myMinistryApplicationsProvider);
+                } catch (e) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('취소에 실패했습니다: $e')),
+                  );
+                }
+              },
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: _line),
+                shape:
+                    RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                textStyle:
+                    const TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5),
+              ),
+              child: const Text('취소하기'),
             ),
-            child: const Text('취소하기'),
-          ),
           MinistryStatus.approved => ElevatedButton(
-            onPressed: null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _primary,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              textStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12.5),
+              onPressed: null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _primary,
+                foregroundColor: Colors.white,
+                shape:
+                    RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                textStyle:
+                    const TextStyle(fontWeight: FontWeight.w900, fontSize: 12.5),
+              ),
+              child: const Text('승인'),
             ),
-            child: const Text('승인'),
-          ),
           MinistryStatus.rejected => ElevatedButton(
-            onPressed: null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.black26,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              textStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12.5),
+              onPressed: null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.black26,
+                foregroundColor: Colors.white,
+                shape:
+                    RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                textStyle:
+                    const TextStyle(fontWeight: FontWeight.w900, fontSize: 12.5),
+              ),
+              child: const Text('반려'),
             ),
-            child: const Text('반려'),
-          ),
-          MinistryStatus.cancelled => OutlinedButton(
-            onPressed: null,
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: _line),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5),
+          MinistryStatus.canceled => OutlinedButton(
+              onPressed: null,
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: _line),
+                shape:
+                    RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                textStyle:
+                    const TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5),
+              ),
+              child: const Text('취소됨'),
             ),
-            child: const Text('취소됨'),
-          ),
         };
 
         return Container(
@@ -619,7 +626,7 @@ class _HistoryTab extends ConsumerWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${x.dept.label}-${x.role}',
+                      '${x.department.label}-${x.motivation}',
                       style: const TextStyle(fontWeight: FontWeight.w900),
                     ),
                   ],
