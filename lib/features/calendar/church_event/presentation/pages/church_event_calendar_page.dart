@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../../../../../core/widgets/async_value_builder.dart';
+import '../../../../../core/widgets/big_calendar_style.dart';
 import '../../domain/models/church_event.dart';
 import '../providers/church_event_providers.dart';
 
@@ -46,8 +47,9 @@ class _ChurchEventCalendarPageState
             children: [
               Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.fromLTRB(8, 12, 8, 12),
                   child: TableCalendar<ChurchEvent>(
+                    locale: 'ko_KR',
                     firstDay: DateTime.utc(2025, 1, 1),
                     lastDay: DateTime.utc(2030, 12, 31),
                     focusedDay: _focusedDay,
@@ -58,10 +60,12 @@ class _ChurchEventCalendarPageState
                     }),
                     onPageChanged: (foc) => setState(() => _focusedDay = foc),
                     eventLoader: eventsOf,
-                    headerStyle: const HeaderStyle(
-                      formatButtonVisible: false,
-                      titleCentered: false,
-                    ),
+                    rowHeight: 56,
+                    daysOfWeekHeight: 30,
+                    availableCalendarFormats: const {CalendarFormat.month: '월간'},
+                    headerStyle: bigCalendarHeaderStyle(),
+                    calendarStyle: bigCalendarStyle(),
+                    calendarBuilders: bigCalendarBuilders<ChurchEvent>(),
                   ),
                 ),
               ),

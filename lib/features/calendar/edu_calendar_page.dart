@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../../core/widgets/async_value_builder.dart';
+import '../../core/widgets/big_calendar_style.dart';
 import '../board/domain/models/board_category.dart';
 import '../board/domain/models/board_post.dart';
 import '../board/presentation/providers/board_providers.dart';
@@ -53,8 +54,9 @@ class _EduCalendarPageState extends ConsumerState<EduCalendarPage> {
             children: [
               Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: TableCalendar(
+                  padding: const EdgeInsets.fromLTRB(8, 12, 8, 12),
+                  child: TableCalendar<BoardPost>(
+                    locale: 'ko_KR',
                     firstDay: DateTime.utc(2025, 1, 1),
                     lastDay: DateTime.utc(2030, 12, 31),
                     focusedDay: _focusedDay,
@@ -68,11 +70,13 @@ class _EduCalendarPageState extends ConsumerState<EduCalendarPage> {
                     onPageChanged: (focusedDay) {
                       _focusedDay = focusedDay;
                     },
-                    headerStyle: const HeaderStyle(
-                      formatButtonVisible: false,
-                      titleCentered: false,
-                    ),
                     eventLoader: (day) => _eventsOf(day, all),
+                    rowHeight: 56,
+                    daysOfWeekHeight: 30,
+                    availableCalendarFormats: const {CalendarFormat.month: '월간'},
+                    headerStyle: bigCalendarHeaderStyle(),
+                    calendarStyle: bigCalendarStyle(),
+                    calendarBuilders: bigCalendarBuilders<BoardPost>(),
                   ),
                 ),
               ),
