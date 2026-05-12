@@ -1,4 +1,4 @@
-package com.example.eloom_church_app
+package com.eloomtv.church
 
 import io.flutter.embedding.android.FlutterActivity
 
