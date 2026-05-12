@@ -73,6 +73,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     return loc.startsWith('/cafe') ||
         loc.startsWith('/cell') ||
         loc.startsWith('/offering/receipt') ||
+        loc.startsWith('/my') || // ✅ 마이페이지도 로그인 필요
         isPrayerPersonal; // ✅ 개인 탭은 로그인 필요
   }
 
@@ -117,7 +118,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final from = state.uri.queryParameters['from'];
           final decoded = from != null ? Uri.decodeComponent(from) : null;
-          return LoginPage(from: decoded);
+          // 로그인 옵션이 ID/PW 하나뿐이라 곧바로 LoginIdPage 노출
+          return LoginIdPage(from: decoded);
         },
       ),
 

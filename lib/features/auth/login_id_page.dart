@@ -179,6 +179,35 @@ class _LoginIdPageState extends ConsumerState<LoginIdPage> {
                     : const Text('로그인'),
               ),
             ),
+
+            const SizedBox(height: 10),
+
+            SizedBox(
+              height: 52,
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: primary,
+                  side: const BorderSide(color: primary, width: 1.4),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  textStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                ),
+                onPressed: busy ? null : () => context.push('/signup/terms'),
+                child: const Text('회원가입'),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: const [
+                _BottomLink(text: '이용약관'),
+                Text('  |  ', style: TextStyle(color: Color(0xFF9CA3AF), fontWeight: FontWeight.w700)),
+                _BottomLink(text: '개인정보처리방침'),
+                Text('  |  ', style: TextStyle(color: Color(0xFF9CA3AF), fontWeight: FontWeight.w700)),
+                _BottomLink(text: '이용안내'),
+              ],
+            ),
           ],
         ),
       ),
@@ -190,6 +219,23 @@ class _LoginIdPageState extends ConsumerState<LoginIdPage> {
       hintText: hint,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+    );
+  }
+}
+
+class _BottomLink extends StatelessWidget {
+  final String text;
+  const _BottomLink({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: const TextStyle(
+        fontSize: 12.5,
+        color: Color(0xFF6B7280),
+        fontWeight: FontWeight.w800,
+      ),
     );
   }
 }

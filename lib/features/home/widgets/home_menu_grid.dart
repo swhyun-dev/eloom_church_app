@@ -26,6 +26,7 @@ class HomeMenuGrid extends ConsumerWidget {
       _MenuItem('사역신청', Icons.assignment_outlined, 'Ministry', '/ministry'),
       _MenuItem('교회일정', Icons.calendar_month_outlined, 'Church Events', '/calendar/church'),
       _MenuItem('오시는길', Icons.location_on_outlined, 'Location', '/location'),
+      _MenuItem('공지사항', Icons.campaign_outlined, 'Notice', '/notices'),
       _MenuItem('홈페이지', Icons.language_outlined, 'Homepage', _homepageKey),
     ];
 

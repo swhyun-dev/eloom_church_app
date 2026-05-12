@@ -303,7 +303,7 @@ class _RightPanelV4 extends StatelessWidget {
                   },
                 ),
                 _SubMenuItem(
-                  text: '개인기도제목 (로그인 필요)',
+                  text: isLoggedIn ? '개인기도제목' : '개인기도제목 (로그인 필요)',
                   onTap: () {
                     onClose();
                     if (!isLoggedIn) {
@@ -333,7 +333,7 @@ class _RightPanelV4 extends StatelessWidget {
                   },
                 ),
                 _SubMenuItem(
-                  text: '기부금 영수증 신청 (로그인 필요)',
+                  text: isLoggedIn ? '기부금 영수증 신청' : '기부금 영수증 신청 (로그인 필요)',
                   onTap: () {
                     onClose();
 
@@ -363,7 +363,7 @@ class _RightPanelV4 extends StatelessWidget {
               title: '교회카페',
               children: [
                 _SubMenuItem(
-                  text: '메뉴/주문하기 (로그인 필요)',
+                  text: isLoggedIn ? '메뉴/주문하기' : '메뉴/주문하기 (로그인 필요)',
                   onTap: () {
                     onClose();
                     const target = '/cafe?tab=0';
@@ -375,7 +375,7 @@ class _RightPanelV4 extends StatelessWidget {
                   },
                 ),
                 _SubMenuItem(
-                  text: '나의 주문 내역 (로그인 필요)',
+                  text: isLoggedIn ? '나의 주문 내역' : '나의 주문 내역 (로그인 필요)',
                   onTap: () {
                     onClose();
                     const target = '/cafe?tab=3';
@@ -399,7 +399,7 @@ class _RightPanelV4 extends StatelessWidget {
               title: '구역모임',
               children: [
                 _SubMenuItem(
-                  text: '내 구역 정보 (로그인 필요)',
+                  text: isLoggedIn ? '내 구역 정보' : '내 구역 정보 (로그인 필요)',
                   onTap: () {
                     onClose();
                     final to = '/cell?tab=0';
@@ -411,7 +411,7 @@ class _RightPanelV4 extends StatelessWidget {
                   },
                 ),
                 _SubMenuItem(
-                  text: '구역 게시판 (로그인 필요)',
+                  text: isLoggedIn ? '구역 게시판' : '구역 게시판 (로그인 필요)',
                   onTap: () {
                     onClose();
                     final to = '/cell?tab=1';
@@ -436,7 +436,7 @@ class _RightPanelV4 extends StatelessWidget {
               title: '사역신청',
               children: [
                 _SubMenuItem(
-                  text: '사역 신청 하기 (로그인 필요)',
+                  text: isLoggedIn ? '사역 신청 하기' : '사역 신청 하기 (로그인 필요)',
                   onTap: () {
                     onClose();
                     const target = '/ministry?tab=0';
@@ -448,7 +448,7 @@ class _RightPanelV4 extends StatelessWidget {
                   },
                 ),
                 _SubMenuItem(
-                  text: '나의 신청 내역 (로그인 필요)',
+                  text: isLoggedIn ? '나의 신청 내역' : '나의 신청 내역 (로그인 필요)',
                   onTap: () {
                     onClose();
                     const target = '/ministry?tab=1';

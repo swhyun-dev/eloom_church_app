@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../../../core/widgets/async_value_builder.dart';
 import '../../domain/models/church_info.dart';
@@ -65,7 +66,7 @@ class ChurchLocationPage extends ConsumerWidget {
   }
 }
 
-class _LocationBody extends StatelessWidget {
+class _LocationBody extends StatefulWidget {
   final ChurchInfo info;
   final void Function(String phone) onCall;
   final void Function(String url) onOpenMap;
@@ -79,10 +80,86 @@ class _LocationBody extends StatelessWidget {
   });
 
   @override
+  State<_LocationBody> createState() => _LocationBodyState();
+}
+
+class _LocationBodyState extends State<_LocationBody> {
+  WebViewController? _mapController;
+
+  @override
+  void initState() {
+    super.initState();
+    final lat = widget.info.mapLatitude;
+    final lng = widget.info.mapLongitude;
+    final query = (lat != null && lng != null)
+        ? '$lat,$lng'
+        : widget.info.fullAddress;
+    // Google Maps embed — API 키 불필요. 한국 지명 정상 표시.
+    final url =
+        'https://www.google.com/maps?q=${Uri.encodeComponent(query)}&z=16&output=embed';
+
+    _mapController = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(const Color(0x00000000))
+      ..loadRequest(Uri.parse(url));
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final info = widget.info;
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
       children: [
+        // ✅ 지도
+        Card(
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              SizedBox(
+                height: 260,
+                child: _mapController == null
+                    ? const Center(child: CircularProgressIndicator())
+                    : WebViewWidget(controller: _mapController!),
+              ),
+              // 외부 지도 앱 빠른 진입
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          final url = info.kakaoMapUrl?.isNotEmpty == true
+                              ? info.kakaoMapUrl!
+                              : 'https://map.kakao.com/?q=${Uri.encodeComponent(info.fullAddress)}';
+                          widget.onOpenMap(url);
+                        },
+                        icon: const Icon(Icons.map_outlined, size: 18),
+                        label: const Text('카카오맵으로 열기'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          final url = info.naverMapUrl?.isNotEmpty == true
+                              ? info.naverMapUrl!
+                              : 'https://map.naver.com/v5/search/${Uri.encodeComponent(info.fullAddress)}';
+                          widget.onOpenMap(url);
+                        },
+                        icon: const Icon(Icons.map_outlined, size: 18),
+                        label: const Text('네이버지도'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+
         _SectionTitle('주소'),
         Card(
           child: Padding(
@@ -94,30 +171,10 @@ class _LocationBody extends StatelessWidget {
                     style: const TextStyle(
                         fontWeight: FontWeight.w800, height: 1.5)),
                 const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    OutlinedButton.icon(
-                      onPressed: () => onCopy(info.fullAddress),
-                      icon: const Icon(Icons.copy, size: 18),
-                      label: const Text('주소 복사'),
-                    ),
-                    if (info.naverMapUrl != null &&
-                        info.naverMapUrl!.isNotEmpty)
-                      OutlinedButton.icon(
-                        onPressed: () => onOpenMap(info.naverMapUrl!),
-                        icon: const Icon(Icons.map_outlined, size: 18),
-                        label: const Text('네이버지도'),
-                      ),
-                    if (info.kakaoMapUrl != null &&
-                        info.kakaoMapUrl!.isNotEmpty)
-                      OutlinedButton.icon(
-                        onPressed: () => onOpenMap(info.kakaoMapUrl!),
-                        icon: const Icon(Icons.map_outlined, size: 18),
-                        label: const Text('카카오맵'),
-                      ),
-                  ],
+                OutlinedButton.icon(
+                  onPressed: () => widget.onCopy(info.fullAddress),
+                  icon: const Icon(Icons.copy, size: 18),
+                  label: const Text('주소 복사'),
                 ),
               ],
             ),
@@ -135,7 +192,7 @@ class _LocationBody extends StatelessWidget {
                       style: const TextStyle(fontWeight: FontWeight.w800)),
                   subtitle: const Text('전화'),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () => onCall(info.phone!),
+                  onTap: () => widget.onCall(info.phone!),
                 ),
               if (info.fax != null && info.fax!.isNotEmpty)
                 ListTile(
