@@ -27,6 +27,7 @@ import '../features/board/presentation/pages/board_detail_page.dart';
 
 import '../features/calendar/edu_calendar_page.dart';
 import '../features/calendar/edu_event_detail_page.dart';
+import '../features/calendar/church_event/presentation/pages/church_event_calendar_page.dart';
 
 import '../features/bulletin/presentation/pages/bulletin_gallery_page.dart';
 import '../features/bulletin/presentation/pages/bulletin_detail_page.dart';
@@ -324,6 +325,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => EduEventDetailPage(
               id: int.parse(state.pathParameters['id']!),
             ),
+          ),
+          // 백엔드 ChurchEvent 기반 교회일정 캘린더 (별도)
+          GoRoute(
+            path: '/calendar/church',
+            builder: (context, state) => const ChurchEventCalendarPage(),
           ),
 
           GoRoute(path: '/bulletins', builder: (context, state) => const BulletinGalleryPage()),
