@@ -17,15 +17,18 @@ import '../features/bible/bible_page.dart';
 import '../features/cafe/cafe_page.dart';
 import '../features/cell/cell_page.dart';
 import '../features/web/web_page.dart';
+import '../features/location/presentation/pages/church_location_page.dart';
 
 import '../features/sermon/sermon_live_page.dart';
 import '../features/sermon/sermon_board_page.dart';
+import '../features/sermon/presentation/pages/sermon_list_page.dart';
 
 import '../features/board/presentation/pages/board_list_page.dart';
 import '../features/board/presentation/pages/board_detail_page.dart';
 
 import '../features/calendar/edu_calendar_page.dart';
 import '../features/calendar/edu_event_detail_page.dart';
+import '../features/calendar/church_event/presentation/pages/church_event_calendar_page.dart';
 
 import '../features/bulletin/presentation/pages/bulletin_gallery_page.dart';
 import '../features/bulletin/presentation/pages/bulletin_detail_page.dart';
@@ -262,9 +265,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
           GoRoute(path: '/web', builder: (context, state) => const WebPage()),
+          GoRoute(path: '/location', builder: (context, state) => const ChurchLocationPage()),
 
           GoRoute(path: '/sermon/live', builder: (context, state) => const SermonLivePage()),
           GoRoute(path: '/sermon/board', builder: (context, state) => const SermonBoardPage()),
+          GoRoute(path: '/sermon/list', builder: (context, state) => const SermonListPage()),
           GoRoute(
             path: '/prayer',
             builder: (context, state) {
@@ -322,6 +327,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => EduEventDetailPage(
               id: int.parse(state.pathParameters['id']!),
             ),
+          ),
+          // 백엔드 ChurchEvent 기반 교회일정 캘린더 (별도)
+          GoRoute(
+            path: '/calendar/church',
+            builder: (context, state) => const ChurchEventCalendarPage(),
           ),
 
           GoRoute(path: '/bulletins', builder: (context, state) => const BulletinGalleryPage()),

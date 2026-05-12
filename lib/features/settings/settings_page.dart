@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'presentation/pages/notification_settings_page.dart';
 import 'settings_provider.dart';
 
 class SettingsPage extends ConsumerWidget {
@@ -72,13 +73,19 @@ class SettingsPage extends ConsumerWidget {
 
           const SizedBox(height: 12),
 
-          // 2) 알림 설정(푸쉬)
+          // 2) 알림 설정 — 카테고리별 토글 페이지로 진입
           Card(
-            child: SwitchListTile(
-              value: s.pushEnabled,
-              onChanged: (v) => ref.read(appSettingsProvider.notifier).setPushEnabled(v),
-              title: const Text('푸쉬 알림', style: TextStyle(fontWeight: FontWeight.w800)),
-              subtitle: const Text('예배/공지/교육일정 알림을 받습니다. (더미)'),
+            child: ListTile(
+              leading: const Icon(Icons.notifications_active_outlined),
+              title: const Text('알림 설정',
+                  style: TextStyle(fontWeight: FontWeight.w800)),
+              subtitle: const Text('예배·공지 카테고리별 알림 ON/OFF'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const NotificationSettingsPage()),
+              ),
             ),
           ),
 

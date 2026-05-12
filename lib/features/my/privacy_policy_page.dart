@@ -1,27 +1,49 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class PrivacyPolicyPage extends StatelessWidget {
+import '../../core/widgets/async_value_builder.dart';
+import '../policy/domain/models/privacy_policy.dart';
+import '../policy/presentation/providers/privacy_policy_providers.dart';
+
+class PrivacyPolicyPage extends ConsumerWidget {
   const PrivacyPolicyPage({super.key});
 
+  static const _fallback =
+      '개인정보처리방침을 일시적으로 불러올 수 없습니다.\n잠시 후 다시 시도해주세요.';
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(privacyPolicyProvider);
+
     return Scaffold(
       appBar: AppBar(title: const Text('개인정보처리방침')),
-      body: const SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(16, 12, 16, 20),
-        child: Text(
-          '개인정보처리방침 (샘플)\n\n'
-              '1. 수집 항목\n'
-              '- 이름, 휴대폰 번호, 아이디, 비밀번호(암호화 저장), (선택) 주소\n\n'
-              '2. 이용 목적\n'
-              '- 회원관리, 교적 매칭(이름/전화번호), 교회 소식 제공\n\n'
-              '3. 보관 기간\n'
-              '- 회원 탈퇴 시까지\n\n'
-              '4. 문의\n'
-              '- 이룸교회 사무실\n\n'
-              '※ 본 문서는 샘플이며 실제 운영 전 법률 검토를 권장합니다.',
-          style: TextStyle(height: 1.6),
-        ),
+      body: AsyncValueBuilder<PrivacyPolicy?>(
+        value: async,
+        onRetry: () => ref.invalidate(privacyPolicyProvider),
+        builder: (policy) {
+          final body = policy?.body ?? _fallback;
+          final version = policy?.version ?? '';
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (version.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      '버전: $version',
+                      style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.black54,
+                          fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                Text(body, style: const TextStyle(height: 1.6)),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
