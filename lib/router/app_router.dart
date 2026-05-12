@@ -17,6 +17,7 @@ import '../features/bible/bible_page.dart';
 import '../features/cafe/cafe_page.dart';
 import '../features/cell/cell_page.dart';
 import '../features/web/web_page.dart';
+import '../features/location/presentation/pages/church_location_page.dart';
 
 import '../features/sermon/sermon_live_page.dart';
 import '../features/sermon/sermon_board_page.dart';
@@ -264,6 +265,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
           GoRoute(path: '/web', builder: (context, state) => const WebPage()),
+          GoRoute(path: '/location', builder: (context, state) => const ChurchLocationPage()),
 
           GoRoute(path: '/sermon/live', builder: (context, state) => const SermonLivePage()),
           GoRoute(path: '/sermon/board', builder: (context, state) => const SermonBoardPage()),
