@@ -74,10 +74,10 @@ Future<void> main() async {
     }
 
     // 2) 백그라운드에서 알림 탭 → foreground 복귀
-    messaging.onMessageOpenedApp.listen(handleMessageTap);
+    FirebaseMessaging.onMessageOpenedApp.listen(handleMessageTap);
 
     // 3) foreground 수신 시 알림함 자동 갱신
-    messaging.onMessage.listen((_) {
+    FirebaseMessaging.onMessage.listen((_) {
       try {
         container.invalidate(inboxProvider);
       } catch (_) {}
