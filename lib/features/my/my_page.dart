@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../state/auth_provider.dart';
-import '../settings/presentation/pages/notification_settings_page.dart';
 import 'privacy_policy_page.dart';
 
 class MyPage extends ConsumerWidget {
@@ -99,19 +98,14 @@ class MyPage extends ConsumerWidget {
           const SizedBox(height: 8),
 
           _SingleLinkSection(
-            title: '알림 설정',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (_) => const NotificationSettingsPage()),
-            ),
-          ),
-          _SingleLinkSection(
-            title: '폰트 크기 / 앱 정보',
+            title: '설정',
+            leading: Icons.settings_outlined,
+            subtitle: '알림 / 폰트 크기 / 앱 정보',
             onTap: () => context.push('/settings'),
           ),
           _SingleLinkSection(
             title: '개인정보처리방침',
+            leading: Icons.policy_outlined,
             onTap: () {
               Navigator.push(
                 context,
@@ -422,18 +416,30 @@ String _fmtPhone(String? raw) {
 
 class _SingleLinkSection extends StatelessWidget {
   final String title;
+  final String? subtitle;
+  final IconData? leading;
   final VoidCallback onTap;
 
   const _SingleLinkSection({
     required this.title,
     required this.onTap,
+    this.subtitle,
+    this.leading,
   });
 
   @override
   Widget build(BuildContext context) {
     return Card(
       child: ListTile(
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+        leading: leading != null
+            ? Icon(leading, color: Colors.blue.shade700)
+            : null,
+        title: Text(title,
+            style: const TextStyle(fontWeight: FontWeight.w800)),
+        subtitle: subtitle != null
+            ? Text(subtitle!,
+                style: const TextStyle(color: Colors.black54, fontSize: 12))
+            : null,
         trailing: const Icon(Icons.chevron_right),
         onTap: onTap,
       ),
