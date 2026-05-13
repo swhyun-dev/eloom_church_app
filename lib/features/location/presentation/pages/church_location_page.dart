@@ -97,6 +97,26 @@ class _LocationBodyState extends State<_LocationBody> {
     return 'https://www.google.com/maps?q=${Uri.encodeComponent(query)}&z=16&output=embed';
   }
 
+  /// Google Maps embed는 iframe 안에서만 동작하므로 HTML로 감싸서 로드.
+  String _wrappedMapHtml(String embedUrl) {
+    return '''
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    html, body { margin:0; padding:0; height:100%; overflow:hidden; background:#EAF5FA; }
+    iframe { display:block; border:0; width:100%; height:100%; }
+  </style>
+</head>
+<body>
+  <iframe src="$embedUrl" allowfullscreen loading="eager"></iframe>
+</body>
+</html>
+''';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -105,7 +125,7 @@ class _LocationBodyState extends State<_LocationBody> {
       _mapController = WebViewController()
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
         ..setBackgroundColor(const Color(0x00000000))
-        ..loadRequest(Uri.parse(_mapEmbedUrl));
+        ..loadHtmlString(_wrappedMapHtml(_mapEmbedUrl));
     }
   }
 
@@ -145,7 +165,7 @@ class _LocationBodyState extends State<_LocationBody> {
                           widget.onOpenMap(url);
                         },
                         icon: const Icon(Icons.map_outlined, size: 18),
-                        label: const Text('카카오맵으로 열기'),
+                        label: const Text('카카오맵으로'),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -158,7 +178,7 @@ class _LocationBodyState extends State<_LocationBody> {
                           widget.onOpenMap(url);
                         },
                         icon: const Icon(Icons.map_outlined, size: 18),
-                        label: const Text('네이버지도'),
+                        label: const Text('네이버지도로'),
                       ),
                     ),
                   ],

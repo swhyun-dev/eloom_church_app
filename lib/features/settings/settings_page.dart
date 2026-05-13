@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import 'presentation/pages/notification_settings_page.dart';
 import 'settings_provider.dart';
@@ -121,15 +122,62 @@ class _AppInfoDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text('앱 정보'),
-      content: const Text(
-        '이룸교회 앱\n'
-            'Version: 0.1.0 (dummy)\n'
-            'Build: 1 (dummy)\n\n'
-            '※ 추후 실제 버전 정보로 연동됩니다.',
+      content: FutureBuilder<PackageInfo>(
+        future: PackageInfo.fromPlatform(),
+        builder: (context, snap) {
+          if (!snap.hasData) {
+            return const SizedBox(
+              width: 200,
+              height: 80,
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
+          final info = snap.data!;
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('이룸교회',
+                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+              const SizedBox(height: 12),
+              _InfoRow(label: '버전', value: info.version),
+              _InfoRow(label: '빌드', value: info.buildNumber),
+              _InfoRow(label: '패키지', value: info.packageName),
+            ],
+          );
+        },
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('확인')),
+        TextButton(
+            onPressed: () => Navigator.pop(context), child: const Text('확인')),
       ],
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+  const _InfoRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 56,
+            child: Text(label,
+                style: const TextStyle(color: Colors.black54, fontSize: 13)),
+          ),
+          Expanded(
+            child: Text(value,
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+          ),
+        ],
+      ),
     );
   }
 }

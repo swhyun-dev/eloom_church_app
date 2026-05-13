@@ -3,9 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../state/auth_provider.dart';
-import '../../router/app_router.dart'; // goRouterProvider
-import '../../services/push_router.dart';
 import '../../models/account_role.dart';
+import '../settings/presentation/pages/notification_settings_page.dart';
 import 'privacy_policy_page.dart';
 
 class MyPage extends ConsumerWidget {
@@ -33,6 +32,11 @@ class MyPage extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('My'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          tooltip: '뒤로',
+          onPressed: () => context.go('/'),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.edit_outlined),
@@ -91,21 +95,22 @@ class MyPage extends ConsumerWidget {
 
           const SizedBox(height: 14),
 
-          // ✅ 기존 푸시 테스트 유지
-          const _PushTestSection(),
-
-          const SizedBox(height: 14),
-
-          // ✅ 아래 섹션들(추후 연결)
+          // ✅ 아래 섹션들
           const _SectionTitle('설정/기타'),
           const SizedBox(height: 8),
 
-          const _Section(title: '나의 주문 내역(교회카페)'),
           _SingleLinkSection(
             title: '알림 설정',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => const NotificationSettingsPage()),
+            ),
+          ),
+          _SingleLinkSection(
+            title: '폰트 크기 / 앱 정보',
             onTap: () => context.push('/settings'),
           ),
-          // ✅ 앱정보/버전 제거 (설정으로 이동)
           _SingleLinkSection(
             title: '개인정보처리방침',
             onTap: () {
@@ -383,99 +388,6 @@ class _InfoNoticeCard extends StatelessWidget {
             Text(
               text,
               style: const TextStyle(fontWeight: FontWeight.w900),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Section extends StatelessWidget {
-  final String title;
-  const _Section({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: () {
-          // TODO: 추후 라우팅 연결
-        },
-      ),
-    );
-  }
-}
-
-class _PushTestSection extends ConsumerWidget {
-  const _PushTestSection();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final router = ref.read(goRouterProvider);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('푸시 테스트(더미)', style: TextStyle(fontWeight: FontWeight.w900)),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                ElevatedButton(
-                  onPressed: () {
-                    PushRouter.handle(
-                      router: router,
-                      data: {
-                        'type': 'sermon_live',
-                        'title': '주일예배 실시간 생방송',
-                        'body': '지금 바로 참여하세요',
-                        'route': '/sermon/live',
-                      },
-                    );
-                  },
-                  child: const Text('Live 시작 푸시'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    PushRouter.handle(
-                      router: router,
-                      data: {
-                        'type': 'notice',
-                        'title': '교회 공지',
-                        'body': '신년 감사 특별 새벽기도회',
-                        'route': '/boards/notice/12',
-                      },
-                    );
-                  },
-                  child: const Text('공지 등록 푸시'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    PushRouter.handle(
-                      router: router,
-                      data: {
-                        'type': 'protected',
-                        'title': '교회카페',
-                        'body': '주문 내역 확인',
-                        'route': '/cafe',
-                      },
-                    );
-                  },
-                  child: const Text('보호페이지 푸시'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              '※ 실제 FCM 연동 전, 라우팅/로그인가드 동작을 먼저 검증합니다.',
-              style: TextStyle(fontSize: 12, color: Colors.black54),
             ),
           ],
         ),

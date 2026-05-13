@@ -1,5 +1,7 @@
 class AppLinks {
-  static const String sermonLiveUrl = 'https://www.youtube.com/@YOUR_CHANNEL/live';
+  // 이룸교회 공식 유튜브 채널 라이브 — 채널에서 라이브 진행 중이면 자동으로 그 영상 페이지로 이동
+  static const String sermonLiveUrl =
+      'https://www.youtube.com/channel/UCFKC9ZeT7JlrGna2nfUI_MQ/live';
   static const String homepage = 'https://www.eloomtv.com';
   static const String offeringUrl = 'https://www.eloomtv.com/online-offering'; // 실제 경로로 수정
 
