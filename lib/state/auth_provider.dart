@@ -188,29 +188,35 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> _persist() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (state.isLoggedIn && state.token != null) {
-      await TokenStorage.write(state.token!);
-      await prefs.setString('auth_name', state.name ?? '');
-      await prefs.setString('auth_userId', state.userId ?? '');
-      await prefs.setString('auth_role', state.role.name);
-      if (state.phone != null) await prefs.setString('auth_phone', state.phone!);
-      final r = state.registry;
-      if (r != null) {
-        await prefs.setString('auth_zone', r.district);
-        await prefs.setString('auth_parish', r.parish);
-        await prefs.setString('auth_position', r.position);
-        await prefs.setBool('auth_isLeader', r.isDistrictLeader);
+    // storage 쓰기 실패해도 로그인 자체는 유지(메모리 상태)
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (state.isLoggedIn && state.token != null) {
+        await TokenStorage.write(state.token!);
+        await prefs.setString('auth_name', state.name ?? '');
+        await prefs.setString('auth_userId', state.userId ?? '');
+        await prefs.setString('auth_role', state.role.name);
+        if (state.phone != null) await prefs.setString('auth_phone', state.phone!);
+        final r = state.registry;
+        if (r != null) {
+          await prefs.setString('auth_zone', r.district);
+          await prefs.setString('auth_parish', r.parish);
+          await prefs.setString('auth_position', r.position);
+          await prefs.setBool('auth_isLeader', r.isDistrictLeader);
+        }
+      } else {
+        await TokenStorage.clear();
+        for (final key in [
+          'auth_token', 'auth_name', 'auth_userId', 'auth_phone',
+          'auth_role', 'auth_zone', 'auth_parish', 'auth_position',
+        ]) {
+          await prefs.remove(key);
+        }
+        await prefs.remove('auth_isLeader');
       }
-    } else {
-      await TokenStorage.clear();
-      for (final key in [
-        'auth_token', 'auth_name', 'auth_userId', 'auth_phone',
-        'auth_role', 'auth_zone', 'auth_parish', 'auth_position',
-      ]) {
-        await prefs.remove(key);
-      }
-      await prefs.remove('auth_isLeader');
+    } catch (e, st) {
+      // ignore: avoid_print
+      print('[auth._persist] storage write failed: $e\n$st');
     }
   }
 

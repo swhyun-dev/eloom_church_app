@@ -32,13 +32,17 @@ class _LoginIdPageState extends ConsumerState<LoginIdPage> {
   }
 
   Future<void> _loadSavedId() async {
-    final prefs = await SharedPreferences.getInstance();
-    final saved = prefs.getString(_kSavedIdKey);
-    if (saved != null && saved.isNotEmpty && mounted) {
-      setState(() {
-        idCtrl.text = saved;
-        rememberMe = true;
-      });
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString(_kSavedIdKey);
+      if (saved != null && saved.isNotEmpty && mounted) {
+        setState(() {
+          idCtrl.text = saved;
+          rememberMe = true;
+        });
+      }
+    } catch (_) {
+      // SharedPreferences 미동작 환경에서도 로그인 화면 자체는 노출되어야 함
     }
   }
 
@@ -132,10 +136,13 @@ class _LoginIdPageState extends ConsumerState<LoginIdPage> {
       if (!mounted) return;
       final dest = widget.from ?? '/';
       context.go(dest);
-    } catch (e) {
+    } catch (e, st) {
+      // 정확한 원인 추적 — 브라우저 콘솔에서 보임
+      // ignore: avoid_print
+      print('[login._submit] unexpected error: $e\n$st');
       setState(() {
         busy = false;
-        error = '네트워크 오류가 발생했습니다. ($e)';
+        error = '로그인 처리 중 오류가 발생했습니다. ($e)';
       });
     }
   }
