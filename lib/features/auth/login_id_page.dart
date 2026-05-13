@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/account_role.dart';
 import '../../models/church_registry_person.dart';
@@ -16,11 +17,30 @@ class LoginIdPage extends ConsumerStatefulWidget {
 }
 
 class _LoginIdPageState extends ConsumerState<LoginIdPage> {
+  static const _kSavedIdKey = 'auth_saved_userId';
+
   final idCtrl = TextEditingController();
   final pwCtrl = TextEditingController();
   bool busy = false;
-  bool obscure = true;
+  bool rememberMe = false;
   String? error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedId();
+  }
+
+  Future<void> _loadSavedId() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString(_kSavedIdKey);
+    if (saved != null && saved.isNotEmpty && mounted) {
+      setState(() {
+        idCtrl.text = saved;
+        rememberMe = true;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -84,16 +104,23 @@ class _LoginIdPageState extends ConsumerState<LoginIdPage> {
       }
 
       ref.read(authProvider.notifier).login(
-        name: user?['name'] as String? ?? userId,
-        userId: userId,
-        phone: user?['phone'] as String? ?? '',
-        role: role,
-        token: token,
-        registry: registry,
-      );
+            name: user?['name'] as String? ?? userId,
+            userId: userId,
+            phone: user?['phone'] as String? ?? '',
+            role: role,
+            token: token,
+            registry: registry,
+          );
+
+      // 간편로그인 정보 저장 — 아이디만 저장(비번은 보안상 X)
+      final prefs = await SharedPreferences.getInstance();
+      if (rememberMe) {
+        await prefs.setString(_kSavedIdKey, userId);
+      } else {
+        await prefs.remove(_kSavedIdKey);
+      }
 
       if (!mounted) return;
-
       final dest = widget.from ?? '/';
       context.go(dest);
     } catch (e) {
@@ -107,16 +134,22 @@ class _LoginIdPageState extends ConsumerState<LoginIdPage> {
   @override
   Widget build(BuildContext context) {
     const primary = Color(0xFF0B4FA8);
+    const labelColor = Color(0xFF111827);
+    const subColor = Color(0xFF6B7280);
+    const lineColor = Color(0xFFD1D5DB);
 
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('로그인'),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('로그인',
+            style: TextStyle(color: labelColor, fontWeight: FontWeight.w800)),
         centerTitle: true,
+        iconTheme: const IconThemeData(color: labelColor),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
           onPressed: () {
-            // BottomNav 보호 라우트로 들어와 redirect 된 경우 stack이 비어있어
-            // maybePop이 무동작. 항상 홈으로 안전하게 이동.
             if (context.canPop()) {
               context.pop();
             } else {
@@ -127,43 +160,116 @@ class _LoginIdPageState extends ConsumerState<LoginIdPage> {
       ),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+          padding: const EdgeInsets.fromLTRB(28, 20, 28, 28),
           children: [
-            const Text(
-              '아이디로 로그인',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
-            ),
             const SizedBox(height: 8),
-            const Text(
-              '가입 시 등록한 아이디와 비밀번호를 입력해주세요.',
-              style: TextStyle(fontSize: 13.5, color: Color(0xFF6B7280), fontWeight: FontWeight.w600),
+            const Text.rich(
+              TextSpan(
+                style: TextStyle(
+                  fontSize: 26,
+                  color: labelColor,
+                  height: 1.35,
+                  fontWeight: FontWeight.w700,
+                ),
+                children: [
+                  TextSpan(text: '안녕하세요!\n'),
+                  TextSpan(
+                      text: '이룸교회',
+                      style: TextStyle(fontWeight: FontWeight.w900)),
+                  TextSpan(text: '에 오신 것을\n환영합니다.'),
+                ],
+              ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 14),
+            const Text(
+              '회원 서비스 이용을 위해 로그인 해주세요.',
+              style: TextStyle(fontSize: 14, color: subColor),
+            ),
+            const SizedBox(height: 48),
 
             TextField(
               controller: idCtrl,
               enabled: !busy,
               textInputAction: TextInputAction.next,
-              decoration: _inputDeco('아이디'),
+              style: const TextStyle(fontSize: 15, color: labelColor),
+              decoration: const InputDecoration(
+                hintText: '아이디를 입력해주세요.',
+                hintStyle: TextStyle(color: Color(0xFFB0B7C3), fontSize: 15),
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(vertical: 12),
+                enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: lineColor),
+                ),
+                focusedBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: primary, width: 1.5),
+                ),
+              ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             TextField(
               controller: pwCtrl,
               enabled: !busy,
-              obscureText: obscure,
+              obscureText: true,
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _submit(),
-              decoration: _inputDeco('비밀번호').copyWith(
-                suffixIcon: IconButton(
-                  icon: Icon(obscure ? Icons.visibility_off : Icons.visibility, size: 20),
-                  onPressed: () => setState(() => obscure = !obscure),
+              style: const TextStyle(fontSize: 15, color: labelColor),
+              decoration: const InputDecoration(
+                hintText: '비밀번호를 입력해주세요.',
+                hintStyle: TextStyle(color: Color(0xFFB0B7C3), fontSize: 15),
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(vertical: 12),
+                enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: lineColor),
                 ),
+                focusedBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: primary, width: 1.5),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+
+            // 간편로그인 정보 저장
+            InkWell(
+              onTap: busy ? null : () => setState(() => rememberMe = !rememberMe),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: Checkbox(
+                      value: rememberMe,
+                      onChanged: busy
+                          ? null
+                          : (v) => setState(() => rememberMe = v ?? false),
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(2)),
+                      ),
+                      side: const BorderSide(color: Color(0xFFB0B7C3)),
+                      activeColor: primary,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const Text(
+                    '간편로그인 정보 저장',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF4B5563),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
             ),
 
             if (error != null) ...[
               const SizedBox(height: 12),
-              Text(error!, style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w700, fontSize: 13)),
+              Text(error!,
+                  style: const TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13)),
             ],
 
             const SizedBox(height: 24),
@@ -174,15 +280,20 @@ class _LoginIdPageState extends ConsumerState<LoginIdPage> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: primary,
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  textStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                  elevation: 0,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(2)),
+                  ),
+                  textStyle: const TextStyle(
+                      fontWeight: FontWeight.w900, fontSize: 16),
                 ),
                 onPressed: busy ? null : _submit,
                 child: busy
                     ? const SizedBox(
                         height: 22,
                         width: 22,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2.5),
                       )
                     : const Text('로그인'),
               ),
@@ -192,41 +303,61 @@ class _LoginIdPageState extends ConsumerState<LoginIdPage> {
 
             SizedBox(
               height: 52,
-              child: OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: primary,
-                  side: const BorderSide(color: primary, width: 1.4),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  textStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(2)),
+                  ),
+                  textStyle: const TextStyle(
+                      fontWeight: FontWeight.w900, fontSize: 16),
                 ),
                 onPressed: busy ? null : () => context.push('/signup/terms'),
                 child: const Text('회원가입'),
               ),
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 18),
 
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: const [
                 _BottomLink(text: '이용약관'),
-                Text('  |  ', style: TextStyle(color: Color(0xFF9CA3AF), fontWeight: FontWeight.w700)),
+                Text('  |  ',
+                    style: TextStyle(
+                        color: Color(0xFF9CA3AF), fontWeight: FontWeight.w700)),
                 _BottomLink(text: '개인정보처리방침'),
-                Text('  |  ', style: TextStyle(color: Color(0xFF9CA3AF), fontWeight: FontWeight.w700)),
+                Text('  |  ',
+                    style: TextStyle(
+                        color: Color(0xFF9CA3AF), fontWeight: FontWeight.w700)),
                 _BottomLink(text: '이용안내'),
               ],
             ),
           ],
         ),
       ),
-    );
-  }
-
-  InputDecoration _inputDeco(String hint) {
-    return InputDecoration(
-      hintText: hint,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: 0,
+        backgroundColor: Colors.white,
+        type: BottomNavigationBarType.fixed,
+        elevation: 8,
+        selectedItemColor: labelColor,
+        unselectedItemColor: subColor,
+        showSelectedLabels: true,
+        showUnselectedLabels: true,
+        selectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+        unselectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+        onTap: (i) {
+          if (i == 0) context.go('/');
+          if (i == 1) context.go('/my');
+        },
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: '홈'),
+          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'My'),
+        ],
+      ),
     );
   }
 }
@@ -242,7 +373,7 @@ class _BottomLink extends StatelessWidget {
       style: const TextStyle(
         fontSize: 12.5,
         color: Color(0xFF6B7280),
-        fontWeight: FontWeight.w800,
+        fontWeight: FontWeight.w700,
       ),
     );
   }
