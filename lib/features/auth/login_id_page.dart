@@ -114,7 +114,15 @@ class _LoginIdPageState extends ConsumerState<LoginIdPage> {
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
-          onPressed: () => Navigator.of(context).maybePop(),
+          onPressed: () {
+            // BottomNav 보호 라우트로 들어와 redirect 된 경우 stack이 비어있어
+            // maybePop이 무동작. 항상 홈으로 안전하게 이동.
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/');
+            }
+          },
         ),
       ),
       body: SafeArea(
