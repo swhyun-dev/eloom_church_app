@@ -63,6 +63,9 @@ class AuthState {
 class AuthNotifier extends StateNotifier<AuthState> {
   AuthNotifier() : super(AuthState.guest);
 
+  /// main()에서 받은 FCM 토큰 — 로그인 시점에 백엔드에 자동 등록되도록 캐시.
+  static String? cachedFcmToken;
+
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -225,6 +228,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
       registry: registry,
     );
     _persist();
+    _maybeRegisterCachedFcm();
+  }
+
+  /// main에서 캐시해둔 FCM 토큰이 있으면 로그인 직후 백엔드에 등록.
+  void _maybeRegisterCachedFcm() {
+    final t = cachedFcmToken;
+    if (t != null && t.isNotEmpty && state.token != null) {
+      registerDeviceToken(t);
+    }
   }
 
   void applySignupResult({
@@ -255,6 +267,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       registry: matchedRegistry,
     );
     _persist();
+    _maybeRegisterCachedFcm();
   }
 
   void setRole(AccountRole role) {
