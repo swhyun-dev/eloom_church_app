@@ -139,19 +139,27 @@ class _SignupInfoPageState extends ConsumerState<SignupInfoPage> {
       };
       final role = roleMap[apiRole] ?? AccountRole.pending;
 
+      // 직분/교구/구역/구역장 중 하나라도 있으면 registry 객체 생성
       ChurchRegistryPerson? registry;
-      if (user?['zone'] != null && user?['parish'] != null) {
+      final positionVal = (user?['position'] as String?) ?? '';
+      final parishVal = (user?['parish'] as String?) ?? '';
+      final zoneVal = (user?['zone'] as String?) ?? '';
+      final hasAnyRegistry = positionVal.isNotEmpty ||
+          parishVal.isNotEmpty ||
+          zoneVal.isNotEmpty ||
+          (user?['isDistrictLeader'] == true);
+      if (hasAnyRegistry) {
         registry = ChurchRegistryPerson(
           name: user!['name'] as String? ?? name,
           phone: widget.verifiedPhone,
-          position: user['position'] as String? ?? '',
-          parish: user['parish'] as String,
-          district: user['zone'] as String,
+          position: positionVal,
+          parish: parishVal,
+          district: zoneVal,
           isDistrictLeader: user['isDistrictLeader'] as bool? ?? false,
         );
       }
 
-      ref.read(authProvider.notifier).applySignupResult(
+      await ref.read(authProvider.notifier).applySignupResult(
         name: user?['name'] as String? ?? name,
         userId: userId,
         phone: widget.verifiedPhone,

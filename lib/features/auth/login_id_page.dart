@@ -91,19 +91,28 @@ class _LoginIdPageState extends ConsumerState<LoginIdPage> {
       };
       final role = roleMap[apiRole] ?? AccountRole.pending;
 
+      // 직분/교구/구역 중 하나라도 있으면 registry 객체 생성
+      // (목사·사모 등 일부 직분은 교구/구역 정보가 비어 있어도 직분은 표시되어야 함)
       ChurchRegistryPerson? registry;
-      if (user?['zone'] != null && user?['parish'] != null) {
+      final positionVal = (user?['position'] as String?) ?? '';
+      final parishVal = (user?['parish'] as String?) ?? '';
+      final zoneVal = (user?['zone'] as String?) ?? '';
+      final hasAnyRegistry = positionVal.isNotEmpty ||
+          parishVal.isNotEmpty ||
+          zoneVal.isNotEmpty ||
+          (user?['isDistrictLeader'] == true);
+      if (hasAnyRegistry) {
         registry = ChurchRegistryPerson(
           name: user!['name'] as String? ?? '',
           phone: user['phone'] as String? ?? '',
-          position: user['position'] as String? ?? '',
-          parish: user['parish'] as String,
-          district: user['zone'] as String,
+          position: positionVal,
+          parish: parishVal,
+          district: zoneVal,
           isDistrictLeader: user['isDistrictLeader'] as bool? ?? false,
         );
       }
 
-      ref.read(authProvider.notifier).login(
+      await ref.read(authProvider.notifier).login(
             name: user?['name'] as String? ?? userId,
             userId: userId,
             phone: user?['phone'] as String? ?? '',

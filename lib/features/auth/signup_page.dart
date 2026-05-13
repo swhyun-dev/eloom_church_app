@@ -91,7 +91,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
     }
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     final name = nameCtrl.text.trim();
     final userId = idCtrl.text.trim();
     final pw = pwCtrl.text.trim();
@@ -116,7 +116,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
     final matched = RegistryMatcher.match(name: name, phone: phone);
 
     // ✅ 가입 완료 (현재는 로컬 상태만 변경)
-    ref.read(authProvider.notifier).applySignupResult(
+    await ref.read(authProvider.notifier).applySignupResult(
       name: name,
       userId: userId,
       phone: phone,

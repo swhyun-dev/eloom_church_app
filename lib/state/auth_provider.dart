@@ -95,14 +95,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
       orElse: () => AccountRole.pending,
     );
 
+    // 직분/교구/구역/구역장 중 하나라도 있으면 registry 객체 생성
     ChurchRegistryPerson? registry;
-    if (zone != null && parish != null) {
+    final hasAnyRegistry = (position?.isNotEmpty == true) ||
+        (parish?.isNotEmpty == true) ||
+        (zone?.isNotEmpty == true) ||
+        isLeader;
+    if (hasAnyRegistry) {
       registry = ChurchRegistryPerson(
         name: name,
         phone: phone ?? '',
         position: position ?? '',
-        parish: parish,
-        district: zone,
+        parish: parish ?? '',
+        district: zone ?? '',
         isDistrictLeader: isLeader,
       );
     }
@@ -137,16 +142,22 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       final rm = u['registryMember'] as Map<String, dynamic>?;
       ChurchRegistryPerson? registry;
-      final zone = u['zone'] as String?;
-      final parish = u['parish'] as String?;
-      if (rm != null && zone != null && parish != null) {
+      final zone = (u['zone'] as String?) ?? '';
+      final parish = (u['parish'] as String?) ?? '';
+      final position = (u['position'] as String?) ?? '';
+      final isLeader = rm?['isLeader'] as bool? ?? false;
+      final hasAnyRegistry = position.isNotEmpty ||
+          parish.isNotEmpty ||
+          zone.isNotEmpty ||
+          isLeader;
+      if (hasAnyRegistry) {
         registry = ChurchRegistryPerson(
           name: u['name'] as String? ?? state.name ?? '',
           phone: u['phone'] as String? ?? state.phone ?? '',
-          position: u['position'] as String? ?? '',
+          position: position,
           parish: parish,
           district: zone,
-          isDistrictLeader: rm['isLeader'] as bool? ?? false,
+          isDistrictLeader: isLeader,
         );
       }
 
@@ -208,7 +219,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     _persist();
   }
 
-  void login({
+  Future<void> login({
     required String name,
     required String userId,
     required String phone,
@@ -216,7 +227,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     String? token,
     String? address,
     ChurchRegistryPerson? registry,
-  }) {
+  }) async {
     state = AuthState(
       isLoggedIn: true,
       role: role,
@@ -227,7 +238,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
       address: address,
       registry: registry,
     );
-    _persist();
+    // secure storage 쓰기가 끝난 뒤 다음 페이지로 가도록 await.
+    // 미 await 시 race condition 으로 다음 API 호출이 Authorization 헤더 없이 발사 → 401 자동 로그아웃.
+    await _persist();
     _maybeRegisterCachedFcm();
   }
 
@@ -239,7 +252,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  void applySignupResult({
+  Future<void> applySignupResult({
     required String name,
     required String userId,
     required String phone,
@@ -249,7 +262,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     String? token,
     bool isAdmin = false,
     bool isStaff = false,
-  }) {
+  }) async {
     final role = isAdmin
         ? AccountRole.admin
         : isStaff
@@ -266,7 +279,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       address: address,
       registry: matchedRegistry,
     );
-    _persist();
+    await _persist();
     _maybeRegisterCachedFcm();
   }
 
