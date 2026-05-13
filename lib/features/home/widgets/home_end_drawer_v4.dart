@@ -51,12 +51,21 @@ class _HomeEndDrawerV4State extends ConsumerState<HomeEndDrawerV4> {
                   TextButton(
                     onPressed: () {
                       Navigator.pop(context);
-                      if (!auth.isLoggedIn) context.push('/login');
+                      if (auth.isLoggedIn) {
+                        context.go('/my');
+                      } else {
+                        context.push('/login');
+                      }
                     },
-                    child: Text(
-                      auth.isLoggedIn ? '로그인됨' : '로그인',
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
+                    child: auth.isLoggedIn
+                        ? _GreetingText(
+                            name: auth.name ?? '',
+                            position: auth.registry?.position ?? '',
+                          )
+                        : const Text(
+                            '로그인',
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
                   ),
 
                   // ✅ 설정 연결
@@ -535,6 +544,38 @@ class _AccordionTileState extends State<_AccordionTile> {
           color: Colors.black54,
         ),
         children: widget.children,
+      ),
+    );
+  }
+}
+
+/// 사이드 메뉴 상단 인사말 — '{이름} {직분}님 환영합니다'
+/// 직분이 비어있으면 '{이름}님 환영합니다'
+class _GreetingText extends StatelessWidget {
+  final String name;
+  final String position;
+  const _GreetingText({required this.name, required this.position});
+
+  @override
+  Widget build(BuildContext context) {
+    final trimmedName = name.trim();
+    final trimmedPos = position.trim();
+    final honorific = trimmedPos.isNotEmpty ? '$trimmedPos님' : '님';
+    final displayName = trimmedName.isEmpty
+        ? '환영합니다'
+        : '$trimmedName $honorific 환영합니다';
+
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 220),
+      child: Text(
+        displayName,
+        style: const TextStyle(
+          fontWeight: FontWeight.w800,
+          fontSize: 13.5,
+          color: Color(0xFF111827),
+        ),
+        overflow: TextOverflow.ellipsis,
+        maxLines: 1,
       ),
     );
   }
