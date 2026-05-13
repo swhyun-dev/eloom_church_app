@@ -165,7 +165,7 @@ class _LocationBodyState extends State<_LocationBody> {
                           widget.onOpenMap(url);
                         },
                         icon: const Icon(Icons.map_outlined, size: 18),
-                        label: const Text('카카오맵으로'),
+                        label: const Text('카카오맵'),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -178,7 +178,7 @@ class _LocationBodyState extends State<_LocationBody> {
                           widget.onOpenMap(url);
                         },
                         icon: const Icon(Icons.map_outlined, size: 18),
-                        label: const Text('네이버지도로'),
+                        label: const Text('네이버지도'),
                       ),
                     ),
                   ],
