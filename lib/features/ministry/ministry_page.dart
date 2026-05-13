@@ -102,9 +102,15 @@ class _MinistryPageState extends ConsumerState<MinistryPage>
             roles: roles,
             selectedDept: selectedDept,
             selectedRole: selectedRole,
+            // 같은 항목 재탭 시 해제(deselect), 다른 항목 탭 시 그쪽으로 단일 선택
             onSelect: (dept, role) => setState(() {
-              selectedDept = dept;
-              selectedRole = role;
+              if (selectedDept == dept && selectedRole == role) {
+                selectedDept = null;
+                selectedRole = null;
+              } else {
+                selectedDept = dept;
+                selectedRole = role;
+              }
             }),
             onSubmit: () => _openConfirm(context),
           ),

@@ -104,7 +104,8 @@ class _BulletinPageState extends ConsumerState<BulletinPage> {
                         child: _DropdownBox<int>(
                           value: year,
                           items: years,
-                          labelBuilder: (v) => '$v년',
+                          // 콤보박스 좁아 4자리("2026년")가 잘리므로 2자리("26년")로 표시
+                          labelBuilder: (v) => '${(v % 100).toString().padLeft(2, '0')}년',
                           onChanged: _setYear,
                         ),
                       ),

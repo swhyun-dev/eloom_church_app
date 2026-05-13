@@ -177,6 +177,18 @@ class _PrayerWritePageState extends ConsumerState<PrayerWritePage> {
               ),
             ],
           ),
+          const SizedBox(height: 8),
+          Text(
+            isPublic
+                ? '※ 공개로 저장하면 같은 구역원에게만 공개됩니다. (구역 게시판 > 구역원 기도제목)'
+                : '※ 비공개로 저장하면 본인만 열람할 수 있습니다.',
+            style: const TextStyle(
+              fontSize: 12.5,
+              height: 1.4,
+              color: Color(0xFF6B7280),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
 
           const SizedBox(height: 14),
           SizedBox(
