@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../state/auth_provider.dart';
-import '../../models/account_role.dart';
 import '../settings/presentation/pages/notification_settings_page.dart';
 import 'privacy_policy_page.dart';
 
@@ -16,7 +15,7 @@ class MyPage extends ConsumerWidget {
 
     if (!auth.isLoggedIn) {
       return Scaffold(
-        appBar: AppBar(title: const Text('My')),
+        appBar: AppBar(title: const Text('마이페이지')),
         body: Center(
           child: ElevatedButton(
             onPressed: () => context.push('/login'),
@@ -27,11 +26,10 @@ class MyPage extends ConsumerWidget {
     }
 
     final isPending = auth.isPending; // ✅ 교적 미매칭 → 준회원
-    final roleLabel = auth.role.label;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My'),
+        title: const Text('마이페이지'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
           tooltip: '뒤로',
@@ -44,11 +42,6 @@ class MyPage extends ConsumerWidget {
           },
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.edit_outlined),
-            tooltip: '정보 수정',
-            onPressed: () => _showEditDialog(context, ref, auth),
-          ),
           TextButton(
             onPressed: () => ref.read(authProvider.notifier).logout(),
             child: const Text('로그아웃'),
@@ -61,7 +54,7 @@ class MyPage extends ConsumerWidget {
           // ✅ 프로필 카드
           _ProfileCard(
             name: auth.name ?? '-',
-            roleLabel: roleLabel,
+            position: auth.registry?.position,
             isDistrictLeader: auth.isDistrictLeader,
             isPending: isPending,
           ),
@@ -193,109 +186,45 @@ class MyPage extends ConsumerWidget {
   }
 }
 
-Future<void> _showEditDialog(BuildContext context, WidgetRef ref, AuthState auth) async {
-  final nameCtrl = TextEditingController(text: auth.name ?? '');
-  final addrCtrl = TextEditingController(text: auth.address ?? '');
-  bool busy = false;
-
-  await showDialog(
-    context: context,
-    builder: (dlg) => StatefulBuilder(
-      builder: (dlg, setDlgState) => AlertDialog(
-        title: const Text('정보 수정', style: TextStyle(fontWeight: FontWeight.w900)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameCtrl,
-              enabled: !busy,
-              decoration: const InputDecoration(
-                labelText: '이름',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: addrCtrl,
-              enabled: !busy,
-              decoration: const InputDecoration(
-                labelText: '주소',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: busy ? null : () => Navigator.pop(dlg),
-            child: const Text('취소'),
-          ),
-          FilledButton(
-            onPressed: busy
-                ? null
-                : () async {
-                    setDlgState(() => busy = true);
-                    try {
-                      await ref.read(authProvider.notifier).updateProfile(
-                            name: nameCtrl.text.trim(),
-                            address: addrCtrl.text.trim(),
-                          );
-                      if (dlg.mounted) Navigator.pop(dlg);
-                    } catch (e) {
-                      setDlgState(() => busy = false);
-                      if (dlg.mounted) {
-                        ScaffoldMessenger.of(dlg).showSnackBar(
-                          SnackBar(content: Text('수정 실패: $e')),
-                        );
-                      }
-                    }
-                  },
-            child: busy
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                  )
-                : const Text('저장'),
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
 class _ProfileCard extends StatelessWidget {
   final String name;
-  final String roleLabel;
+  final String? position; // 직분 (집사 / 권사 / 목사 / 성도 등)
   final bool isDistrictLeader;
   final bool isPending;
 
   const _ProfileCard({
     required this.name,
-    required this.roleLabel,
+    required this.position,
     required this.isDistrictLeader,
     required this.isPending,
   });
+
+  /// 호칭 — 직분이 있으면 '{position}님', 없으면 '성도님' 기본
+  String get _displayName {
+    if (isPending) return name;
+    final p = (position ?? '').trim();
+    final suffix = p.isNotEmpty ? '$p님' : '성도님';
+    return '$name $suffix';
+  }
 
   @override
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(16),
         child: Row(
           children: [
             Container(
-              width: 42,
-              height: 42,
+              width: 48,
+              height: 48,
               decoration: BoxDecoration(
                 color: Colors.blue.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: const Icon(Icons.person_outline, color: Colors.blue),
+              child: const Icon(Icons.person_outline,
+                  color: Colors.blue, size: 26),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -304,26 +233,47 @@ class _ProfileCard extends StatelessWidget {
                     children: [
                       Flexible(
                         child: Text(
-                          isPending ? name : '$name 성도님',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+                          _displayName,
+                          style: const TextStyle(
+                              fontSize: 17, fontWeight: FontWeight.w900),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      _Chip(text: roleLabel, tone: isPending ? _Tone.gray : _Tone.blue),
-
+                      // 직책(구역장 등)만 뱃지 — 일반 성도/집사 등은 뱃지 X
                       if (isDistrictLeader && !isPending) ...[
-                        const SizedBox(width: 6),
-                        const _Chip(text: '구역장', tone: _Tone.green, icon: Icons.verified),
+                        const SizedBox(width: 8),
+                        const _Chip(
+                            text: '구역장',
+                            tone: _Tone.green,
+                            icon: Icons.verified),
                       ],
                     ],
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    isPending
-                        ? '교적 DB 매칭이 필요합니다.'
-                        : '교적 인증 완료',
-                    style: const TextStyle(fontSize: 12.5, color: Colors.black54),
+                  const SizedBox(height: 8),
+                  // 교적 인증 완료 강조 (아이콘 + 진한 색)
+                  Row(
+                    children: [
+                      Icon(
+                        isPending
+                            ? Icons.error_outline
+                            : Icons.check_circle_rounded,
+                        size: 18,
+                        color: isPending
+                            ? const Color(0xFFEA580C)
+                            : const Color(0xFF16A34A),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        isPending ? '교적 DB 매칭이 필요합니다' : '교적 인증 완료',
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w800,
+                          color: isPending
+                              ? const Color(0xFFEA580C)
+                              : const Color(0xFF16A34A),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
