@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+10
+version: 1.0.0+11
 
 environment:
   sdk: ^3.10.7
@@ -61,6 +61,7 @@ dev_dependencies:
     sdk: flutter
   hive_generator: ^2.0.1
   build_runner: ^2.4.9
+  flutter_launcher_icons: ^0.14.1
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -68,6 +69,22 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+
+# 앱 런처 아이콘 — 한 번 셋업 후 이미지 교체 시 `dart run flutter_launcher_icons` 재실행
+flutter_launcher_icons:
+  android: "ic_launcher"      # AndroidManifest의 @mipmap/ic_launcher 그대로 사용
+  ios: true
+  image_path: "assets/icon/app_icon.png"
+  min_sdk_android: 21
+  # Android 8+ Adaptive icon — 배경은 brand 색, foreground는 동일 이미지
+  adaptive_icon_background: "#EAF5FA"
+  adaptive_icon_foreground: "assets/icon/app_icon.png"
+  remove_alpha_ios: true
+  web:
+    generate: true
+    image_path: "assets/icon/app_icon.png"
+    background_color: "#EAF5FA"
+    theme_color: "#0B4FA8"
 
 
 
