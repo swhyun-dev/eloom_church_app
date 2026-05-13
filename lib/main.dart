@@ -9,6 +9,8 @@ import 'app.dart';
 import 'core/http/app_dio.dart';
 import 'features/bible/domain/models/bible_memo.dart';
 import 'features/core/di/service_locator.dart';
+import 'features/notifications/presentation/providers/notification_providers.dart';
+import 'router/app_router.dart';
 import 'state/auth_provider.dart';
 
 Future<void> main() async {
@@ -39,7 +41,7 @@ Future<void> main() async {
   AppDio.onUnauthorized = () =>
       container.read(authProvider.notifier).logout();
 
-  // Firebase 초기화 + FCM 토큰 등록 (실패해도 앱 자체는 진행)
+  // Firebase 초기화 + FCM 토큰 등록 + 알림 탭 라우팅 (실패해도 앱 자체는 진행)
   try {
     await Firebase.initializeApp();
     final messaging = FirebaseMessaging.instance;
@@ -53,6 +55,32 @@ Future<void> main() async {
     messaging.onTokenRefresh.listen((newToken) {
       AuthNotifier.cachedFcmToken = newToken;
       container.read(authProvider.notifier).registerDeviceToken(newToken);
+    });
+
+    // 알림 탭 → 메시지의 data.route 로 이동
+    void handleMessageTap(RemoteMessage msg) {
+      final route = msg.data['route']?.toString();
+      if (route == null || route.isEmpty) return;
+      final router = container.read(goRouterProvider);
+      router.push(route);
+    }
+
+    // 1) 종료 상태에서 알림 탭으로 앱 시작
+    final initial = await messaging.getInitialMessage();
+    if (initial != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        handleMessageTap(initial);
+      });
+    }
+
+    // 2) 백그라운드에서 알림 탭 → foreground 복귀
+    messaging.onMessageOpenedApp.listen(handleMessageTap);
+
+    // 3) foreground 수신 시 알림함 자동 갱신
+    messaging.onMessage.listen((_) {
+      try {
+        container.invalidate(inboxProvider);
+      } catch (_) {}
     });
   } catch (_) {
     // Firebase 미설정 환경(예: 개발 디바이스)에서는 무시하고 앱 계속 실행
