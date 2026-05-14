@@ -128,27 +128,61 @@ class _HomeFooterInfo extends StatelessWidget {
         children: [
           // ✅ 로고(하단용)
           Image.asset(
-            'assets/images/footer_logo.png', // 🔸 로고 파일명은 원하시는대로 변경 가능
+            'assets/images/footer_logo.png',
             height: 22,
             fit: BoxFit.contain,
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
+
+          // ✅ 약도 — 탭 시 오시는길 페이지로 이동
+          InkWell(
+            borderRadius: BorderRadius.circular(10),
+            onTap: () => context.push('/location'),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Image.asset(
+                'assets/images/church_map.jpg',
+                fit: BoxFit.fitWidth,
+                width: double.infinity,
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          GestureDetector(
+            onTap: () => context.push('/location'),
+            child: Row(
+              children: [
+                Icon(Icons.touch_app_outlined,
+                    size: 14, color: textColor),
+                const SizedBox(width: 4),
+                Text(
+                  '탭하면 오시는길 페이지로 이동합니다',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: textColor,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
 
           _InfoRow(
             label: '주소',
-            value: '강원특별자치도 원주시 지정면 도원로 138', // 🔸 실제 주소로 바꿔주세요
+            value: '강원특별자치도 원주시 지정면 도원로 138',
             color: textColor,
           ),
           const SizedBox(height: 6),
           _InfoRow(
             label: '전화',
-            value: '033-746-0690', // 🔸 실제 번호로 바꿔주세요
+            value: '033-746-0690',
             color: textColor,
           ),
           const SizedBox(height: 6),
           _InfoRow(
             label: '팩스',
-            value: '033-733-2272', // 🔸 실제 번호로 바꿔주세요
+            value: '033-733-2272',
             color: textColor,
           ),
         ],
