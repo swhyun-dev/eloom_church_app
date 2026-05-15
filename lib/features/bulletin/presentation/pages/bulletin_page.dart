@@ -100,17 +100,19 @@ class _BulletinPageState extends ConsumerState<BulletinPage> {
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                   child: Row(
                     children: [
+                      // 년: 4자리("2026년")라 더 많은 공간 할당
                       Expanded(
+                        flex: 5,
                         child: _DropdownBox<int>(
                           value: year,
                           items: years,
-                          // 콤보박스 좁아 4자리("2026년")가 잘리므로 2자리("26년")로 표시
-                          labelBuilder: (v) => '${(v % 100).toString().padLeft(2, '0')}년',
+                          labelBuilder: (v) => '$v년',
                           onChanged: _setYear,
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
                       Expanded(
+                        flex: 3,
                         child: _DropdownBox<int>(
                           value: month,
                           items: months,
@@ -118,8 +120,9 @@ class _BulletinPageState extends ConsumerState<BulletinPage> {
                           onChanged: _setMonth,
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
                       Expanded(
+                        flex: 3,
                         child: _DropdownBox<int>(
                           value: day,
                           items: sundayDays,
@@ -250,13 +253,21 @@ class _DropdownBox<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 40,
+      height: 42,
       child: DropdownButtonFormField<T>(
         initialValue: value,
         isExpanded: true,
-        icon: const Icon(Icons.expand_more),
+        icon: const Icon(Icons.expand_more, size: 18),
+        iconEnabledColor: Colors.black54,
+        // 폰트 스케일이 켜져도 라벨이 잘리지 않도록 충분한 사이즈 + 내부 패딩 최소화
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w800,
+          color: Colors.black87,
+        ),
         decoration: InputDecoration(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          isDense: true,
           filled: true,
           fillColor: Colors.white,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
@@ -265,6 +276,32 @@ class _DropdownBox<T> extends StatelessWidget {
             borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.12)),
           ),
         ),
+        // 선택된 값 표시 — 가운데 정렬 + 폰트 스케일 잠금(textScaler 1.0)으로
+        // 시스템 폰트 키워도 박스 안에서 잘리지 않도록 함.
+        selectedItemBuilder: (context) => items
+            .map(
+              (v) => Align(
+                alignment: Alignment.centerLeft,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: MediaQuery(
+                    data: MediaQuery.of(context)
+                        .copyWith(textScaler: const TextScaler.linear(1.0)),
+                    child: Text(
+                      labelBuilder(v),
+                      maxLines: 1,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            )
+            .toList(),
         items: items
             .map(
               (v) => DropdownMenuItem<T>(
