@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../core/http/app_dio.dart';
 import '../core/storage/token_storage.dart';
 import '../models/account_role.dart';
 import '../models/church_registry_person.dart';
@@ -188,6 +189,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> _persist() async {
+    // 메모리 토큰 동기화 — Safari PWA에서 storage 실패해도 AppDio가 헤더 첨부 가능
+    AppDio.memoryToken = state.isLoggedIn ? state.token : null;
     // storage 쓰기 실패해도 로그인 자체는 유지(메모리 상태)
     try {
       final prefs = await SharedPreferences.getInstance();

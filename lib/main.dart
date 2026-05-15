@@ -37,6 +37,9 @@ Future<void> main() async {
   final container = ProviderContainer();
   await container.read(authProvider.notifier).init();
 
+  // Safari PWA에서 storage가 불안정해도 메모리 토큰으로 동작하도록 hydrate
+  await AppDio.hydrate();
+
   // 401 응답 시 자동 로그아웃 (TokenStorage.clear는 인터셉터에서 처리)
   AppDio.onUnauthorized = () =>
       container.read(authProvider.notifier).logout();
