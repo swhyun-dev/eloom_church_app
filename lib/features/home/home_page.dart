@@ -134,39 +134,57 @@ class _HomeFooterInfo extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          // ✅ 약도 — 탭 시 오시는길 페이지로 이동
+          // ✅ 약도 — 헤더 + 이미지 + 안내 (탭 시 오시는길 페이지로 이동)
+          Row(
+            children: [
+              Icon(Icons.location_on_outlined, size: 16, color: textColor),
+              const SizedBox(width: 4),
+              Text(
+                '오시는길',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                  color: textColor,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '약도를 누르면 자세히 보기 →',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: textColor.withValues(alpha: 0.7),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
           InkWell(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(12),
             onTap: () => context.push('/location'),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(10),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.black.withValues(alpha: 0.06),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                    color: Colors.black.withValues(alpha: 0.05),
+                  ),
+                ],
+              ),
+              clipBehavior: Clip.antiAlias,
               child: Image.asset(
-                'assets/images/church_map.jpg',
+                'assets/images/church_map_new.jpg',
                 fit: BoxFit.fitWidth,
                 width: double.infinity,
               ),
             ),
           ),
-          const SizedBox(height: 6),
-          GestureDetector(
-            onTap: () => context.push('/location'),
-            child: Row(
-              children: [
-                Icon(Icons.touch_app_outlined,
-                    size: 14, color: textColor),
-                const SizedBox(width: 4),
-                Text(
-                  '탭하면 오시는길 페이지로 이동합니다',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    color: textColor,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
 
           _InfoRow(
             label: '주소',
