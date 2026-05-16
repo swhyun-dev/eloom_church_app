@@ -254,7 +254,7 @@ class _ProfileCard extends StatelessWidget {
                         size: 18,
                         color: isPending
                             ? const Color(0xFFEA580C)
-                            : const Color(0xFF16A34A),
+                            : const Color(0xFF0B4FA8),
                       ),
                       const SizedBox(width: 6),
                       Text(
@@ -264,7 +264,7 @@ class _ProfileCard extends StatelessWidget {
                           fontWeight: FontWeight.w800,
                           color: isPending
                               ? const Color(0xFFEA580C)
-                              : const Color(0xFF16A34A),
+                              : const Color(0xFF0B4FA8),
                         ),
                       ),
                     ],
@@ -366,12 +366,13 @@ class _Chip extends StatelessWidget {
 
     switch (tone) {
       case _Tone.blue:
-        bg = Colors.blue.withValues(alpha: 0.10);
-        fg = Colors.blue;
+        bg = const Color(0xFF0B4FA8).withValues(alpha: 0.10);
+        fg = const Color(0xFF0B4FA8);
         break;
       case _Tone.green:
-        bg = Colors.green.withValues(alpha: 0.12);
-        fg = Colors.green;
+        // brand 통일 — 구역장 등 강조 뱃지도 메인 블루 사용
+        bg = const Color(0xFF0B4FA8).withValues(alpha: 0.12);
+        fg = const Color(0xFF0B4FA8);
         break;
       case _Tone.gray:
         bg = Colors.black.withValues(alpha: 0.06);

@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../config/links.dart';
 import '../../../state/auth_provider.dart';
+import '../../../theme/app_theme.dart';
 
 class HomeEndDrawerV4 extends ConsumerStatefulWidget {
   const HomeEndDrawerV4({super.key});
@@ -104,7 +105,7 @@ class _HomeEndDrawerV4State extends ConsumerState<HomeEndDrawerV4> {
                             height: 40,
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
-                              color: isSelected ? const Color(0xFF39B54A) : Colors.transparent,
+                              color: isSelected ? AppTheme.brand : Colors.transparent,
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(

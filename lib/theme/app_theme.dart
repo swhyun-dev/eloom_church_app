@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  static const brand = Color(0xFF48B04A);
+  // 브랜드 메인 — 짙은 파랑. 슬라이드 메뉴 선택 / 캘린더 강조 / 버튼 포인트 등 전반 통일.
+  static const brand = Color(0xFF0B4FA8);
 
   // ✅ 스플래시 배경과 동일 톤
   static const bg = Color(0xFFEAF5FA);
