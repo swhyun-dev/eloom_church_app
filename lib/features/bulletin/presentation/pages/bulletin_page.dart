@@ -5,7 +5,7 @@ import '../../../../core/widgets/async_value_builder.dart';
 import '../../domain/models/bulletin.dart';
 import '../providers/bulletin_providers.dart';
 
-/// 날짜(년/월/주일) 선택형 주보 뷰어.
+/// 날짜(년/월/주일) 선택형 주보 뷰어 — PageView 슬라이드 기반.
 class BulletinPage extends ConsumerStatefulWidget {
   const BulletinPage({super.key});
 
@@ -19,6 +19,8 @@ class _BulletinPageState extends ConsumerState<BulletinPage> {
   int day = DateTime.now().day;
   int pageIndex = 0;
 
+  late final PageController _pageController = PageController();
+
   List<int> get years => List.generate(10, (i) => 2020 + i);
   List<int> get months => List.generate(12, (i) => i + 1);
   List<int> get sundayDays => _getSundays(year, month);
@@ -27,6 +29,12 @@ class _BulletinPageState extends ConsumerState<BulletinPage> {
   void initState() {
     super.initState();
     _ensureValidDay();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 
   void _ensureValidDay() {
@@ -40,22 +48,37 @@ class _BulletinPageState extends ConsumerState<BulletinPage> {
     day = best ?? list.first;
   }
 
+  void _resetPage() {
+    pageIndex = 0;
+    if (_pageController.hasClients) {
+      _pageController.jumpToPage(0);
+    }
+  }
+
   void _setYear(int v) => setState(() {
         year = v;
         _ensureValidDay();
-        pageIndex = 0;
+        _resetPage();
       });
 
   void _setMonth(int v) => setState(() {
         month = v;
         _ensureValidDay();
-        pageIndex = 0;
+        _resetPage();
       });
 
   void _setDay(int v) => setState(() {
         day = v;
-        pageIndex = 0;
+        _resetPage();
       });
+
+  void _animateToPage(int target) {
+    _pageController.animateToPage(
+      target,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+    );
+  }
 
   List<int> _getSundays(int y, int m) {
     final lastDay = DateTime(y, m + 1, 0).day;
@@ -85,7 +108,6 @@ class _BulletinPageState extends ConsumerState<BulletinPage> {
       body: AsyncValueBuilder<List<Bulletin>>(
         value: asyncList,
         onRetry: () => ref.invalidate(bulletinListProvider),
-        // 빈 목록도 그대로 화면 유지 (날짜 선택 UI는 보여줘야 함)
         isEmpty: (_) => false,
         builder: (all) {
           final bulletin = _findBulletin(all);
@@ -97,10 +119,9 @@ class _BulletinPageState extends ConsumerState<BulletinPage> {
             child: Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
                   child: Row(
                     children: [
-                      // 년: 4자리("2026년")라 더 많은 공간 할당
                       Expanded(
                         flex: 5,
                         child: _DropdownBox<int>(
@@ -135,7 +156,7 @@ class _BulletinPageState extends ConsumerState<BulletinPage> {
                 ),
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
                     child: Container(
                       decoration: BoxDecoration(
                         color: cs.surface,
@@ -152,58 +173,213 @@ class _BulletinPageState extends ConsumerState<BulletinPage> {
                       clipBehavior: Clip.antiAlias,
                       child: bulletin == null
                           ? _EmptyState(year: year, month: month, day: day)
-                          : InteractiveViewer(
-                              child: Image.network(
-                                images[idx],
-                                fit: BoxFit.contain,
-                                width: double.infinity,
-                                loadingBuilder: (_, child, p) => p == null
-                                    ? child
-                                    : const Center(child: CircularProgressIndicator()),
-                                errorBuilder: (_, _, _) => Center(
-                                  child: Icon(
-                                    Icons.broken_image_outlined,
-                                    size: 54,
-                                    color: cs.onSurface.withValues(alpha: 0.35),
-                                  ),
-                                ),
-                              ),
+                          : _SlideViewer(
+                              images: images,
+                              currentIndex: idx,
+                              maxPage: maxPage,
+                              pageController: _pageController,
+                              onPageChanged: (p) =>
+                                  setState(() => pageIndex = p),
+                              onPrev: idx > 0
+                                  ? () => _animateToPage(idx - 1)
+                                  : null,
+                              onNext: idx < maxPage
+                                  ? () => _animateToPage(idx + 1)
+                                  : null,
                             ),
                     ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _CircleNavButton(
-                        icon: Icons.chevron_left,
-                        filled: false,
-                        onTap: idx > 0 ? () => setState(() => pageIndex = idx - 1) : null,
-                      ),
-                      if (images.isNotEmpty) ...[
-                        const SizedBox(width: 16),
-                        Text(
-                          '${idx + 1} / ${images.length}',
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-                        ),
-                      ],
-                      const SizedBox(width: 16),
-                      _CircleNavButton(
-                        icon: Icons.chevron_right,
-                        filled: true,
-                        onTap: images.isNotEmpty && idx < maxPage
-                            ? () => setState(() => pageIndex = idx + 1)
-                            : null,
-                      ),
-                    ],
                   ),
                 ),
               ],
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+/// PageView + 오버레이 화살표 + 페이지 인디케이터.
+class _SlideViewer extends StatelessWidget {
+  final List<String> images;
+  final int currentIndex;
+  final int maxPage;
+  final PageController pageController;
+  final ValueChanged<int> onPageChanged;
+  final VoidCallback? onPrev;
+  final VoidCallback? onNext;
+
+  const _SlideViewer({
+    required this.images,
+    required this.currentIndex,
+    required this.maxPage,
+    required this.pageController,
+    required this.onPageChanged,
+    required this.onPrev,
+    required this.onNext,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Stack(
+      children: [
+        // 슬라이드 — 좌우 스와이프
+        PageView.builder(
+          controller: pageController,
+          itemCount: images.length,
+          onPageChanged: onPageChanged,
+          itemBuilder: (_, i) => InteractiveViewer(
+            child: Image.network(
+              images[i],
+              fit: BoxFit.contain,
+              width: double.infinity,
+              loadingBuilder: (_, child, p) => p == null
+                  ? child
+                  : const Center(child: CircularProgressIndicator()),
+              errorBuilder: (_, _, _) => Center(
+                child: Icon(
+                  Icons.broken_image_outlined,
+                  size: 54,
+                  color: cs.onSurface.withValues(alpha: 0.35),
+                ),
+              ),
+            ),
+          ),
+        ),
+
+        // 좌측 화살표 — 첫 페이지 아닐 때만
+        if (onPrev != null)
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            child: _OverlayArrow(
+              icon: Icons.chevron_left,
+              onTap: onPrev!,
+              alignment: Alignment.centerLeft,
+            ),
+          ),
+
+        // 우측 화살표 — 마지막 페이지 아닐 때만
+        if (onNext != null)
+          Positioned(
+            right: 0,
+            top: 0,
+            bottom: 0,
+            child: _OverlayArrow(
+              icon: Icons.chevron_right,
+              onTap: onNext!,
+              alignment: Alignment.centerRight,
+            ),
+          ),
+
+        // 페이지 인디케이터 — 2장 이상일 때만
+        if (images.length > 1)
+          Positioned(
+            bottom: 12,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: _PageIndicator(
+                current: currentIndex,
+                total: images.length,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// 이미지 위에 떠 있는 희미한 좌/우 화살표.
+class _OverlayArrow extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  final Alignment alignment;
+
+  const _OverlayArrow({
+    required this.icon,
+    required this.onTap,
+    required this.alignment,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isLeft = alignment == Alignment.centerLeft;
+
+    return SizedBox(
+      width: 72,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: Container(
+            alignment: alignment,
+            padding: EdgeInsets.only(
+              left: isLeft ? 8 : 0,
+              right: isLeft ? 0 : 8,
+            ),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: isLeft ? Alignment.centerLeft : Alignment.centerRight,
+                end: isLeft ? Alignment.centerRight : Alignment.centerLeft,
+                colors: [
+                  Colors.black.withValues(alpha: 0.10),
+                  Colors.transparent,
+                ],
+              ),
+            ),
+            child: Container(
+              width: 40,
+              height: 40,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.55),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                    color: Colors.black.withValues(alpha: 0.10),
+                  ),
+                ],
+              ),
+              child: Icon(
+                icon,
+                size: 26,
+                color: Colors.black.withValues(alpha: 0.65),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 페이지 인디케이터 — "1 / 5" + 진행 점.
+class _PageIndicator extends StatelessWidget {
+  final int current;
+  final int total;
+  const _PageIndicator({required this.current, required this.total});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        '${current + 1} / $total',
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w900,
+          fontSize: 12.5,
+        ),
       ),
     );
   }
@@ -220,16 +396,20 @@ class _EmptyState extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.description_outlined, size: 54, color: cs.onSurface.withValues(alpha: 0.35)),
+          Icon(Icons.description_outlined,
+              size: 54, color: cs.onSurface.withValues(alpha: 0.35)),
           const SizedBox(height: 12),
           Text(
             '$year.$month.${day.toString().padLeft(2, '0')} 주보',
-            style: TextStyle(color: cs.onSurface.withValues(alpha: 0.7), fontWeight: FontWeight.w600),
+            style: TextStyle(
+                color: cs.onSurface.withValues(alpha: 0.7),
+                fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 6),
           Text(
             '등록된 주보가 없습니다.',
-            style: TextStyle(color: cs.onSurface.withValues(alpha: 0.5), fontSize: 13),
+            style: TextStyle(
+                color: cs.onSurface.withValues(alpha: 0.5), fontSize: 13),
           ),
         ],
       ),
@@ -259,7 +439,6 @@ class _DropdownBox<T> extends StatelessWidget {
         isExpanded: true,
         icon: const Icon(Icons.expand_more, size: 18),
         iconEnabledColor: Colors.black54,
-        // 폰트 스케일이 켜져도 라벨이 잘리지 않도록 충분한 사이즈 + 내부 패딩 최소화
         style: const TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w800,
@@ -276,8 +455,6 @@ class _DropdownBox<T> extends StatelessWidget {
             borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.12)),
           ),
         ),
-        // 선택된 값 표시 — 가운데 정렬 + 폰트 스케일 잠금(textScaler 1.0)으로
-        // 시스템 폰트 키워도 박스 안에서 잘리지 않도록 함.
         selectedItemBuilder: (context) => items
             .map(
               (v) => Align(
@@ -313,47 +490,6 @@ class _DropdownBox<T> extends StatelessWidget {
         onChanged: (v) {
           if (v != null) onChanged(v);
         },
-      ),
-    );
-  }
-}
-
-class _CircleNavButton extends StatelessWidget {
-  const _CircleNavButton({
-    required this.icon,
-    required this.filled,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final bool filled;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final enabled = onTap != null;
-
-    final bg = filled ? cs.primary : cs.surface;
-    final fg = filled ? cs.onPrimary : cs.onSurface;
-    final border = filled ? Colors.transparent : Colors.black.withValues(alpha: 0.12);
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
-      child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 150),
-        opacity: enabled ? 1 : 0.35,
-        child: Container(
-          width: 46,
-          height: 46,
-          decoration: BoxDecoration(
-            color: bg,
-            shape: BoxShape.circle,
-            border: Border.all(color: border),
-          ),
-          child: Icon(icon, color: fg, size: 26),
-        ),
       ),
     );
   }
